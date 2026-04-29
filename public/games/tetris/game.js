@@ -71,9 +71,10 @@ function startGame() {
   state = "playing";
   overlay.classList.add("hidden");
   overlayGO.classList.add("hidden");
+  lastTime = performance.now();
+  dropTimer = 0;
   next = randomPiece();
   spawnPiece();
-  lastTime = performance.now();
   updateUI();
 }
 
@@ -524,7 +525,8 @@ function drawExplosions() {
 function update(time) {
   if (state !== "playing") return;
 
-  const dt = time - lastTime;
+  // Guard against huge dt on first frame or after tab switch
+  const dt = Math.min(time - lastTime, 100);
   lastTime = time;
 
   dropTimer += dt;

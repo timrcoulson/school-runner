@@ -12,34 +12,27 @@ const CELL = 40;
 canvas.width = COLS * CELL;
 canvas.height = ROWS * CELL;
 
-// 0 = grass (buildable), 1 = path, 2 = chip (goal), 3 = spawn
-// Path winds from left to right
+// 0 = grass (buildable), 1 = path, 2 = chip (goal), 3 = spawn top, 4 = spawn bottom
+// Two paths converge on the chip from different directions
 const MAP = [
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-  [3,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,1,0,0,0,0,0,1,1,1,1,0,0,0],
-  [0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0],
-  [0,0,0,0,0,0,1,0,0,1,0,0,1,1,1,0],
-  [0,0,0,0,0,0,1,1,1,1,0,0,0,0,1,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2],
+  [3,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0],
+  [0,0,1,1,1,1,0,1,0,0,0,1,1,1,0,0],
+  [0,0,0,0,0,0,0,1,1,1,1,1,0,1,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,2],
+  [0,0,0,0,0,1,1,1,0,0,0,0,0,1,0,0],
+  [0,0,0,0,0,1,0,1,1,1,1,1,1,1,0,0],
+  [4,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ];
 
-// Build path as ordered waypoints
-const PATH = [];
-function buildPath() {
-  // BFS from spawn to chip
+// Build paths using BFS from each spawn to the chip
+const PATHS = []; // array of [{x,y}, ...]
+
+function bfsPath(startR, startC, endR, endC) {
   const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
   const parent = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-  let startR = -1, startC = -1, endR = -1, endC = -1;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (MAP[r][c] === 3) { startR = r; startC = c; }
-      if (MAP[r][c] === 2) { endR = r; endC = c; }
-    }
-  }
   const queue = [[startR, startC]];
   visited[startR][startC] = true;
   while (queue.length > 0) {
@@ -54,19 +47,33 @@ function buildPath() {
       }
     }
   }
-  // Trace back
   const rawPath = [];
   let cur = [endR, endC];
   while (cur) {
     rawPath.unshift(cur);
     cur = parent[cur[0]][cur[1]];
   }
-  PATH.length = 0;
-  for (const [r, c] of rawPath) {
-    PATH.push({ x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 });
+  return rawPath.map(([r, c]) => ({ x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 }));
+}
+
+function buildPaths() {
+  let endR = -1, endC = -1;
+  const spawns = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (MAP[r][c] === 2) { endR = r; endC = c; }
+      if (MAP[r][c] === 3 || MAP[r][c] === 4) spawns.push([r, c]);
+    }
+  }
+  PATHS.length = 0;
+  for (const [sr, sc] of spawns) {
+    PATHS.push(bfsPath(sr, sc, endR, endC));
   }
 }
-buildPath();
+buildPaths();
+
+// Compat: keep PATH pointing to first path
+const PATH = PATHS[0] || [];
 
 // ─── Defender Types ──────────────────────────────────────────────
 const DEFENDERS = [
@@ -293,28 +300,34 @@ function nextWave() {
 
   // Generate enemies for this wave
   waveEnemies = [];
-  const baseCount = 4 + wave * 2;
+  const baseCount = 5 + Math.floor(wave * 2.5);
   for (let i = 0; i < baseCount; i++) {
     let type;
     const r = Math.random();
     if (wave <= 2) {
-      type = r < 0.7 ? ENEMY_TYPES[0] : ENEMY_TYPES[1];
+      type = r < 0.6 ? ENEMY_TYPES[0] : ENEMY_TYPES[1];
     } else if (wave <= 4) {
-      type = r < 0.4 ? ENEMY_TYPES[0] : r < 0.7 ? ENEMY_TYPES[1] : r < 0.9 ? ENEMY_TYPES[2] : ENEMY_TYPES[3];
-    } else if (wave <= 7) {
-      type = r < 0.2 ? ENEMY_TYPES[0] : r < 0.4 ? ENEMY_TYPES[1] : r < 0.6 ? ENEMY_TYPES[2] : r < 0.85 ? ENEMY_TYPES[3] : ENEMY_TYPES[4];
+      type = r < 0.3 ? ENEMY_TYPES[0] : r < 0.55 ? ENEMY_TYPES[1] : r < 0.8 ? ENEMY_TYPES[2] : ENEMY_TYPES[3];
+    } else if (wave <= 6) {
+      type = r < 0.15 ? ENEMY_TYPES[0] : r < 0.3 ? ENEMY_TYPES[1] : r < 0.5 ? ENEMY_TYPES[2] : r < 0.8 ? ENEMY_TYPES[3] : ENEMY_TYPES[4];
     } else {
-      type = r < 0.1 ? ENEMY_TYPES[1] : r < 0.3 ? ENEMY_TYPES[2] : r < 0.6 ? ENEMY_TYPES[3] : ENEMY_TYPES[4];
+      type = r < 0.05 ? ENEMY_TYPES[1] : r < 0.2 ? ENEMY_TYPES[2] : r < 0.55 ? ENEMY_TYPES[3] : ENEMY_TYPES[4];
     }
-    // Scale HP with wave
-    const hpScale = 1 + (wave - 1) * 0.15;
+    // HP scales faster: +25% per wave
+    const hpScale = 1 + (wave - 1) * 0.25;
+    // Speed scales slightly too
+    const speedScale = 1 + (wave - 1) * 0.03;
+    // Pick a random path for this enemy
+    const pathIdx = Math.floor(Math.random() * PATHS.length);
     waveEnemies.push({
       ...type,
       hp: Math.round(type.hp * hpScale),
       maxHp: Math.round(type.hp * hpScale),
+      speed: type.speed * speedScale,
+      pathIdx,
     });
   }
-  spawnInterval = Math.max(20, 45 - wave * 2);
+  spawnInterval = Math.max(15, 40 - wave * 3);
   spawnTimer = 0;
 }
 
@@ -367,12 +380,13 @@ function update() {
     if (spawnTimer >= spawnInterval) {
       spawnTimer = 0;
       const eType = waveEnemies.shift();
+      const ePath = PATHS[eType.pathIdx] || PATHS[0];
       enemies.push({
         ...eType,
-        pathIdx: 0,
-        x: PATH[0].x,
-        y: PATH[0].y,
-        progress: 0, // 0 to PATH.length-1
+        x: ePath[0].x,
+        y: ePath[0].y,
+        progress: 0,
+        path: ePath,
       });
     }
   }
@@ -380,14 +394,15 @@ function update() {
   // Move enemies
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
-    const target = PATH[Math.min(Math.ceil(e.progress), PATH.length - 1)];
+    const ePath = e.path;
+    const target = ePath[Math.min(Math.ceil(e.progress), ePath.length - 1)];
     const dx = target.x - e.x;
     const dy = target.y - e.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist < e.speed * 2) {
       e.progress++;
-      if (e.progress >= PATH.length) {
+      if (e.progress >= ePath.length) {
         // Reached the chip!
         charge -= e.damage;
         // Damage particle
@@ -519,7 +534,7 @@ function cellRng(r, c, i) {
 }
 
 function isPath(r, c) {
-  return r >= 0 && r < ROWS && c >= 0 && c < COLS && (MAP[r][c] === 1 || MAP[r][c] === 3 || MAP[r][c] === 2);
+  return r >= 0 && r < ROWS && c >= 0 && c < COLS && MAP[r][c] !== 0;
 }
 
 function drawMap() {
@@ -545,7 +560,7 @@ function drawMap() {
           ctx.fillStyle = cellRng(r, c, 88) > 0.5 ? "#aacc44" : "#dddd55";
           ctx.fillRect(x + 14 + cellRng(r, c, 77) * 10, y + 10 + cellRng(r, c, 66) * 16, 2, 2);
         }
-      } else if (tile === 1 || tile === 3) {
+      } else if (tile === 1 || tile === 3 || tile === 4) {
         // Path — dirt with edge detection
         ctx.fillStyle = "#5a5544";
         ctx.fillRect(x, y, CELL, CELL);
@@ -1045,7 +1060,7 @@ function drawPlacementPreview() {
 }
 
 function drawChargeBar() {
-  const chipCell = { r: 8, c: 15 };
+  const chipCell = { r: 5, c: 15 };
   const cx = chipCell.c * CELL + CELL / 2;
   const cy = chipCell.r * CELL - 8;
   const barW = 34;

@@ -506,207 +506,500 @@ function update() {
 }
 
 // ─── Drawing ─────────────────────────────────────────────────────
+// Seeded random for consistent grass/path textures per cell
+function cellRng(r, c, i) {
+  let h = (r * 374761 + c * 668265 + i * 982451) & 0xffffffff;
+  h = ((h >> 16) ^ h) * 0x45d9f3b;
+  return ((h >> 16) ^ h & 0xffff) / 0xffff;
+}
+
+function isPath(r, c) {
+  return r >= 0 && r < ROWS && c >= 0 && c < COLS && (MAP[r][c] === 1 || MAP[r][c] === 3 || MAP[r][c] === 2);
+}
+
 function drawMap() {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const x = c * CELL, y = r * CELL;
       const tile = MAP[r][c];
       if (tile === 0) {
-        // Grass
-        ctx.fillStyle = "#2a4a2a";
+        // Grass — varied green base
+        const shade = cellRng(r, c, 0) * 12;
+        ctx.fillStyle = `rgb(${34 + shade},${64 + shade},${34 + shade})`;
         ctx.fillRect(x, y, CELL, CELL);
-        ctx.fillStyle = "#325a32";
-        ctx.fillRect(x, y, CELL, 1);
-        // Grass texture
-        if ((r + c) % 3 === 0) {
-          ctx.fillStyle = "#1a3a1a";
-          ctx.fillRect(x + 8, y + 12, 3, 6);
+        // Grass tufts
+        ctx.fillStyle = `rgb(${42 + shade},${78 + shade},${42 + shade})`;
+        for (let i = 0; i < 4; i++) {
+          const gx = x + cellRng(r, c, i + 10) * 32 + 2;
+          const gy = y + cellRng(r, c, i + 20) * 28 + 4;
+          ctx.fillRect(gx, gy, 2, 4);
+          ctx.fillRect(gx - 1, gy + 1, 1, 3);
+        }
+        // Flowers / pebbles
+        if (cellRng(r, c, 99) > 0.7) {
+          ctx.fillStyle = cellRng(r, c, 88) > 0.5 ? "#aacc44" : "#dddd55";
+          ctx.fillRect(x + 14 + cellRng(r, c, 77) * 10, y + 10 + cellRng(r, c, 66) * 16, 2, 2);
         }
       } else if (tile === 1 || tile === 3) {
-        // Path
-        ctx.fillStyle = "#4a4a3a";
+        // Path — dirt with edge detection
+        ctx.fillStyle = "#5a5544";
         ctx.fillRect(x, y, CELL, CELL);
-        ctx.fillStyle = "#555544";
-        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
-        // Gravel dots
-        ctx.fillStyle = "#3a3a2a";
-        ctx.fillRect(x + 8, y + 8, 2, 2);
-        ctx.fillRect(x + 20, y + 16, 2, 2);
-        ctx.fillRect(x + 30, y + 6, 2, 2);
+        // Inner dirt (lighter)
+        ctx.fillStyle = "#6a6555";
+        ctx.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
+        // Gravel texture
+        ctx.fillStyle = "#4a4538";
+        for (let i = 0; i < 6; i++) {
+          const gx = x + cellRng(r, c, i + 30) * 34 + 2;
+          const gy = y + cellRng(r, c, i + 40) * 34 + 2;
+          const gs = 1 + Math.floor(cellRng(r, c, i + 50) * 2);
+          ctx.fillRect(gx, gy, gs, gs);
+        }
+        // Light pebbles
+        ctx.fillStyle = "#7a7565";
+        for (let i = 0; i < 3; i++) {
+          ctx.fillRect(x + cellRng(r, c, i + 60) * 30 + 4, y + cellRng(r, c, i + 70) * 30 + 4, 2, 2);
+        }
+        // Edge borders (dark where path meets grass)
+        ctx.fillStyle = "#3a352a";
+        if (!isPath(r - 1, c)) ctx.fillRect(x, y, CELL, 2);
+        if (!isPath(r + 1, c)) ctx.fillRect(x, y + CELL - 2, CELL, 2);
+        if (!isPath(r, c - 1)) ctx.fillRect(x, y, 2, CELL);
+        if (!isPath(r, c + 1)) ctx.fillRect(x + CELL - 2, y, 2, CELL);
       } else if (tile === 2) {
-        // Chip goal
-        ctx.fillStyle = "#1a2a1a";
+        // Chip platform — dark PCB
+        ctx.fillStyle = "#0a1a12";
         ctx.fillRect(x, y, CELL, CELL);
-        // Circuit board pattern
-        ctx.fillStyle = "#0a3a2a";
-        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+        // PCB traces
+        ctx.fillStyle = "#0f2f1f";
+        ctx.fillRect(x + 4, y + 8, CELL - 8, 2);
+        ctx.fillRect(x + 4, y + 16, CELL - 8, 2);
+        ctx.fillRect(x + 4, y + 24, CELL - 8, 2);
+        ctx.fillRect(x + 10, y + 4, 2, CELL - 8);
+        ctx.fillRect(x + 22, y + 4, 2, CELL - 8);
+        // Solder pads
+        ctx.fillStyle = "#b87333";
+        ctx.fillRect(x + 6, y + 6, 3, 3);
+        ctx.fillRect(x + 28, y + 6, 3, 3);
+        ctx.fillRect(x + 6, y + 28, 3, 3);
+        ctx.fillRect(x + 28, y + 28, 3, 3);
         drawMicrochip(x + CELL / 2, y + CELL / 2, 14);
       }
-      // Grid line
-      ctx.strokeStyle = "rgba(255,255,255,0.04)";
-      ctx.strokeRect(x, y, CELL, CELL);
     }
   }
 }
 
 function drawMicrochip(cx, cy, sz) {
+  // PCB body
   ctx.fillStyle = "#1a3a2a";
   ctx.fillRect(cx - sz, cy - sz * 0.7, sz * 2, sz * 1.4);
+  // Bevel
+  ctx.fillStyle = "#244a34";
+  ctx.fillRect(cx - sz, cy - sz * 0.7, sz * 2, 2);
+  ctx.fillStyle = "#102a1a";
+  ctx.fillRect(cx - sz, cy + sz * 0.7 - 2, sz * 2, 2);
+  // Die
+  ctx.fillStyle = "#99aabb";
+  ctx.fillRect(cx - sz * 0.55, cy - sz * 0.35, sz * 1.1, sz * 0.7);
   ctx.fillStyle = "#aabbcc";
-  ctx.fillRect(cx - sz * 0.6, cy - sz * 0.4, sz * 1.2, sz * 0.8);
-  // Pins
-  ctx.fillStyle = "#ccc";
+  ctx.fillRect(cx - sz * 0.5, cy - sz * 0.3, sz * 1.0, sz * 0.6);
+  // Die markings
+  ctx.fillStyle = "#88999a";
+  ctx.fillRect(cx - sz * 0.3, cy - sz * 0.15, sz * 0.6, 1);
+  ctx.fillRect(cx - sz * 0.3, cy + sz * 0.05, sz * 0.6, 1);
+  // Pins (all 4 sides)
+  ctx.fillStyle = "#ccd";
+  for (let i = 0; i < 4; i++) {
+    const py = cy - sz * 0.5 + i * sz * 0.3;
+    ctx.fillRect(cx - sz - 4, py, 5, 2);
+    ctx.fillRect(cx + sz - 1, py, 5, 2);
+  }
   for (let i = 0; i < 3; i++) {
-    ctx.fillRect(cx - sz - 3, cy - sz * 0.4 + i * sz * 0.4, 4, 2);
-    ctx.fillRect(cx + sz - 1, cy - sz * 0.4 + i * sz * 0.4, 4, 2);
+    const px = cx - sz * 0.5 + i * sz * 0.4;
+    ctx.fillRect(px, cy - sz * 0.7 - 3, 2, 4);
+    ctx.fillRect(px, cy + sz * 0.7 - 1, 2, 4);
   }
   // Red dot
   ctx.fillStyle = "#ff4444";
-  ctx.fillRect(cx - sz + 3, cy - sz * 0.5, 3, 3);
-  // Charge glow
-  const glow = 0.2 + Math.sin(frame * 0.05) * 0.1;
-  ctx.fillStyle = `rgba(0,255,136,${glow})`;
+  ctx.fillRect(cx - sz + 3, cy - sz * 0.55, 3, 3);
+  // Charge glow (pulsing ring)
+  const chargePct = charge / 100;
+  const glowAlpha = 0.15 + Math.sin(frame * 0.05) * 0.08;
+  const glowCol = charge > 50 ? `rgba(0,255,136,${glowAlpha})` : charge > 25 ? `rgba(255,220,0,${glowAlpha})` : `rgba(255,50,50,${glowAlpha + 0.1})`;
+  ctx.fillStyle = glowCol;
   ctx.beginPath();
-  ctx.arc(cx, cy, sz * 1.2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, sz * 1.3, 0, Math.PI * 2);
   ctx.fill();
+  // Inner charge ring
+  ctx.strokeStyle = glowCol.replace(String(glowAlpha), String(glowAlpha * 2));
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, sz * 0.95, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargePct);
+  ctx.stroke();
 }
 
 function drawTower(tower) {
   const x = tower.x, y = tower.y;
-  const s = 14;
   const col = tower.type.color;
+  const shooting = tower.cooldown > tower.type.fireRate - 5;
 
-  // Base platform
+  // Desk
+  ctx.fillStyle = "#5a4a3a";
+  ctx.fillRect(x - 14, y + 2, 28, 10);
+  ctx.fillStyle = "#6a5a4a";
+  ctx.fillRect(x - 13, y + 3, 26, 4);
+  // Desk legs
+  ctx.fillStyle = "#4a3a2a";
+  ctx.fillRect(x - 12, y + 10, 3, 4);
+  ctx.fillRect(x + 9, y + 10, 3, 4);
+
+  // Monitor
+  ctx.fillStyle = "#222";
+  ctx.fillRect(x - 8, y - 6, 16, 11);
+  ctx.fillStyle = shooting ? "#44ff88" : "#1a3a2a";
+  ctx.fillRect(x - 6, y - 4, 12, 7);
+  // Screen content
+  if (!shooting) {
+    ctx.fillStyle = "#0a5a2a";
+    ctx.fillRect(x - 5, y - 3, 8, 1);
+    ctx.fillRect(x - 5, y - 1, 6, 1);
+    ctx.fillRect(x - 5, y + 1, 9, 1);
+  }
+  // Monitor stand
   ctx.fillStyle = "#333";
-  ctx.fillRect(x - s, y - s, s * 2, s * 2);
-  ctx.fillStyle = "#444";
-  ctx.fillRect(x - s + 2, y - s + 2, s * 2 - 4, s * 2 - 4);
+  ctx.fillRect(x - 2, y + 5, 4, 2);
 
-  // Body
+  // Chair
+  ctx.fillStyle = "#333";
+  ctx.fillRect(x - 6, y + 6, 12, 3);
+
+  // Body (shirt)
   ctx.fillStyle = col;
-  ctx.fillRect(x - 8, y - 10, 16, 16);
+  ctx.fillRect(x - 7, y - 10, 14, 12);
+  // Shirt collar
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(x - 3, y - 10, 6, 2);
 
-  // Head (from behind/above)
+  // Arms (typing)
+  const armBob = shooting ? 0 : Math.sin(frame * 0.1 + tower.x) * 1;
   ctx.fillStyle = "#ffcc99";
-  ctx.fillRect(x - 5, y - 14, 10, 6);
+  ctx.fillRect(x - 10, y - 4 + armBob, 4, 8);
+  ctx.fillRect(x + 6, y - 4 - armBob, 4, 8);
 
-  // Glasses!
-  ctx.fillStyle = "#222";
-  ctx.fillRect(x - 5, y - 13, 4, 3);
-  ctx.fillRect(x + 1, y - 13, 4, 3);
-  ctx.fillStyle = "rgba(150,200,255,0.4)";
-  ctx.fillRect(x - 4, y - 12, 2, 1);
-  ctx.fillRect(x + 2, y - 12, 2, 1);
+  // Head
+  ctx.fillStyle = "#ffcc99";
+  ctx.fillRect(x - 6, y - 18, 12, 9);
+  // Ears
+  ctx.fillStyle = "#ffbb88";
+  ctx.fillRect(x - 7, y - 16, 2, 4);
+  ctx.fillRect(x + 5, y - 16, 2, 4);
+
+  // Hair (varies by grade)
+  const hairColors = { D: "#884400", C: "#553311", B: "#222", A: "#aa6622", S: "#eee" };
+  ctx.fillStyle = hairColors[tower.type.grade] || "#553311";
+  ctx.fillRect(x - 6, y - 20, 12, 4);
+  if (tower.type.grade === "S") {
+    // CTO has slick hair
+    ctx.fillRect(x - 7, y - 19, 14, 2);
+  }
+
+  // GLASSES (thick & prominent!)
+  ctx.fillStyle = "#111";
+  // Frames
+  ctx.fillRect(x - 6, y - 15, 5, 4);
+  ctx.fillRect(x + 1, y - 15, 5, 4);
   // Bridge
-  ctx.fillStyle = "#222";
-  ctx.fillRect(x - 1, y - 12, 2, 1);
+  ctx.fillRect(x - 1, y - 14, 2, 2);
+  // Arms of glasses
+  ctx.fillRect(x - 7, y - 14, 2, 1);
+  ctx.fillRect(x + 5, y - 14, 2, 1);
+  // Lens glare
+  ctx.fillStyle = "rgba(150,200,255,0.5)";
+  ctx.fillRect(x - 5, y - 14, 2, 2);
+  ctx.fillRect(x + 2, y - 14, 2, 2);
 
-  // Hair
-  ctx.fillStyle = "#553311";
-  ctx.fillRect(x - 5, y - 16, 10, 3);
-
-  // Grade badge
-  ctx.fillStyle = "#000";
-  ctx.fillRect(x + 6, y - 6, 8, 8);
-  ctx.fillStyle = tower.type.color;
+  // Grade badge (on shirt)
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(x + 3, y - 8, 8, 8);
+  ctx.fillStyle = col;
+  ctx.strokeStyle = col;
   ctx.font = "bold 7px 'Courier New'";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(tower.type.grade, x + 10, y - 2);
+  ctx.fillText(tower.type.grade, x + 7, y - 4);
+
+  // Shooting flash
+  if (shooting) {
+    ctx.fillStyle = `${tower.type.projColor}66`;
+    ctx.beginPath();
+    ctx.arc(x, y - 2, 18, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Range indicator on hover
   if (hoverCell && hoverCell.r === tower.r && hoverCell.c === tower.c) {
-    ctx.strokeStyle = `rgba(255,255,255,0.15)`;
+    ctx.save();
+    ctx.strokeStyle = `${col}44`;
     ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.arc(x, y, tower.type.range, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
   }
 }
 
 function drawEnemy(e) {
   const x = e.x, y = e.y;
+  const walk = Math.sin(frame * 0.15 + e.x * 0.1) * 2;
 
   // Shadow
-  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
   ctx.beginPath();
-  ctx.ellipse(x, y + 10, 8, 3, 0, 0, Math.PI * 2);
+  ctx.ellipse(x, y + 12, 9, 3, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Legs
-  const walk = Math.sin(frame * 0.15 + e.x) * 3;
-  ctx.fillStyle = "#555";
-  ctx.fillRect(x - 4, y + 2, 3, 8 + walk);
-  ctx.fillRect(x + 1, y + 2, 3, 8 - walk);
-
-  // Body
-  ctx.fillStyle = e.color;
-  ctx.fillRect(x - 7, y - 8, 14, 14);
-
-  // Head
-  ctx.fillStyle = "#ffcc99";
-  if (e.id === "sprinkler" || e.id === "storm") ctx.fillStyle = e.color;
-  ctx.fillRect(x - 5, y - 14, 10, 7);
-
-  // Hat / headgear
-  ctx.fillStyle = e.hat;
-  ctx.fillRect(x - 6, y - 16, 12, 4);
-
-  // Weapon indicator
-  if (e.weapon === "watergun") {
-    ctx.fillStyle = "#44aaff";
-    ctx.fillRect(x + 6, y - 6, 6, 3);
-  } else if (e.weapon === "balloon") {
-    ctx.fillStyle = "#ff4444";
+  if (e.id === "farmer") {
+    // Overalls
+    ctx.fillStyle = "#556633";
+    ctx.fillRect(x - 4, y + 3, 3, 9 + walk);
+    ctx.fillRect(x + 1, y + 3, 3, 9 - walk);
+    // Boots
+    ctx.fillStyle = "#4a3a1a";
+    ctx.fillRect(x - 5, y + 10 + walk, 5, 3);
+    ctx.fillRect(x, y + 10 - walk, 5, 3);
+    // Body — plaid shirt
+    ctx.fillStyle = "#cc4444";
+    ctx.fillRect(x - 8, y - 8, 16, 14);
+    ctx.fillStyle = "#aa3333";
+    ctx.fillRect(x - 6, y - 6, 2, 10);
+    ctx.fillRect(x - 1, y - 6, 2, 10);
+    ctx.fillRect(x + 4, y - 6, 2, 10);
+    // Head
+    ctx.fillStyle = "#ffcc99";
+    ctx.fillRect(x - 5, y - 15, 10, 8);
+    // Straw hat
+    ctx.fillStyle = "#ccaa44";
+    ctx.fillRect(x - 8, y - 17, 16, 3);
+    ctx.fillRect(x - 5, y - 20, 10, 4);
+    ctx.fillStyle = "#aa8833";
+    ctx.fillRect(x - 5, y - 17, 10, 1);
+    // Eyes
+    ctx.fillStyle = "#222";
+    ctx.fillRect(x - 3, y - 12, 2, 2);
+    ctx.fillRect(x + 2, y - 12, 2, 2);
+    // Water gun
+    ctx.fillStyle = "#2288dd";
+    ctx.fillRect(x + 7, y - 6, 8, 4);
+    ctx.fillStyle = "#55bbff";
+    ctx.fillRect(x + 13, y - 5, 4, 2);
+    // Water spray
+    if (Math.sin(frame * 0.2) > 0.3) {
+      ctx.fillStyle = "rgba(80,180,255,0.5)";
+      ctx.fillRect(x + 16, y - 5 + Math.sin(frame * 0.3) * 2, 3, 2);
+    }
+  } else if (e.id === "kid") {
+    // Shorts & legs
+    ctx.fillStyle = "#ffcc99";
+    ctx.fillRect(x - 3, y + 2, 3, 8 + walk);
+    ctx.fillRect(x + 1, y + 2, 3, 8 - walk);
+    ctx.fillStyle = "#3366aa";
+    ctx.fillRect(x - 4, y, 8, 5);
+    // Sneakers
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(x - 4, y + 9 + walk, 4, 2);
+    ctx.fillRect(x + 1, y + 9 - walk, 4, 2);
+    // T-shirt
+    ctx.fillStyle = "#ff6644";
+    ctx.fillRect(x - 7, y - 8, 14, 12);
+    // Head
+    ctx.fillStyle = "#ffcc99";
+    ctx.fillRect(x - 5, y - 14, 10, 7);
+    // Backwards cap
+    ctx.fillStyle = "#ff2222";
+    ctx.fillRect(x - 5, y - 16, 10, 4);
+    ctx.fillRect(x - 8, y - 14, 4, 2);
+    // Cheeky grin
+    ctx.fillStyle = "#222";
+    ctx.fillRect(x - 2, y - 10, 2, 1);
+    ctx.fillRect(x + 1, y - 10, 2, 1);
+    ctx.fillStyle = "#cc6655";
+    ctx.fillRect(x - 2, y - 9, 5, 1);
+    // Balloon
+    ctx.fillStyle = "#ff4466";
     ctx.beginPath();
-    ctx.arc(x + 8, y - 4, 3, 0, Math.PI * 2);
+    ctx.arc(x + 9, y - 8, 5, 0, Math.PI * 2);
     ctx.fill();
-  } else if (e.weapon === "emp") {
-    const pulse = Math.sin(frame * 0.1) * 2;
-    ctx.strokeStyle = "rgba(100,100,255,0.5)";
+    ctx.fillStyle = "#ff6688";
+    ctx.beginPath();
+    ctx.arc(x + 8, y - 9, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#999";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(x, y - 4, 10 + pulse, 0, Math.PI * 2);
+    ctx.moveTo(x + 9, y - 3);
+    ctx.lineTo(x + 7, y - 2);
     ctx.stroke();
-  } else if (e.weapon === "pulse") {
-    ctx.fillStyle = "rgba(100,100,255,0.3)";
-    ctx.beginPath();
-    ctx.arc(x, y, 12 + Math.sin(frame * 0.08) * 3, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (e.weapon === "spray") {
-    ctx.fillStyle = "rgba(80,180,255,0.4)";
-    for (let i = 0; i < 3; i++) {
-      ctx.fillRect(x + 7 + i * 3, y - 6 + Math.sin(frame * 0.2 + i) * 2, 2, 2);
+  } else if (e.id === "sprinkler") {
+    // Robot legs
+    ctx.fillStyle = "#666677";
+    ctx.fillRect(x - 4, y + 2, 3, 8);
+    ctx.fillRect(x + 1, y + 2, 3, 8);
+    // Body — metal box
+    ctx.fillStyle = "#778899";
+    ctx.fillRect(x - 8, y - 8, 16, 14);
+    ctx.fillStyle = "#8899aa";
+    ctx.fillRect(x - 7, y - 7, 14, 2);
+    // Rivets
+    ctx.fillStyle = "#99aabb";
+    ctx.fillRect(x - 6, y - 2, 2, 2);
+    ctx.fillRect(x + 4, y - 2, 2, 2);
+    // Head — dome
+    ctx.fillStyle = "#889";
+    ctx.fillRect(x - 5, y - 14, 10, 7);
+    ctx.fillStyle = "#99a";
+    ctx.fillRect(x - 4, y - 13, 8, 2);
+    // Red eye
+    ctx.fillStyle = "#ff2222";
+    ctx.fillRect(x - 2, y - 12, 4, 2);
+    // Antenna
+    ctx.fillStyle = "#667";
+    ctx.fillRect(x, y - 18, 2, 5);
+    ctx.fillStyle = "#ff4444";
+    ctx.fillRect(x - 1, y - 19, 4, 2);
+    // Spray nozzles
+    ctx.fillStyle = "#556";
+    ctx.fillRect(x + 7, y - 5, 6, 3);
+    ctx.fillRect(x + 7, y, 6, 3);
+    // Spray particles
+    ctx.fillStyle = "rgba(80,180,255,0.5)";
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(x + 12 + i * 3, y - 4 + Math.sin(frame * 0.3 + i) * 3, 2, 2);
     }
+  } else if (e.id === "agent") {
+    // Legs (suit pants)
+    ctx.fillStyle = "#1a1a28";
+    ctx.fillRect(x - 4, y + 2, 3, 9 + walk);
+    ctx.fillRect(x + 1, y + 2, 3, 9 - walk);
+    // Shoes
+    ctx.fillStyle = "#111";
+    ctx.fillRect(x - 5, y + 10 + walk, 5, 2);
+    ctx.fillRect(x, y + 10 - walk, 5, 2);
+    // Suit body
+    ctx.fillStyle = "#222233";
+    ctx.fillRect(x - 8, y - 9, 16, 14);
+    // Tie
+    ctx.fillStyle = "#aa2222";
+    ctx.fillRect(x - 1, y - 8, 2, 8);
+    // Lapels
+    ctx.fillStyle = "#2a2a3a";
+    ctx.fillRect(x - 6, y - 8, 4, 8);
+    ctx.fillRect(x + 2, y - 8, 4, 8);
+    // Head
+    ctx.fillStyle = "#ffcc99";
+    ctx.fillRect(x - 5, y - 16, 10, 8);
+    // Sunglasses
+    ctx.fillStyle = "#000";
+    ctx.fillRect(x - 5, y - 14, 4, 3);
+    ctx.fillRect(x + 1, y - 14, 4, 3);
+    ctx.fillRect(x - 1, y - 13, 2, 1);
+    // Earpiece
+    ctx.fillStyle = "#333";
+    ctx.fillRect(x + 4, y - 13, 3, 4);
+    // Stern mouth
+    ctx.fillStyle = "#cc9988";
+    ctx.fillRect(x - 2, y - 10, 4, 1);
+    // EMP device
+    const pulse = Math.sin(frame * 0.12) * 3;
+    ctx.strokeStyle = `rgba(100,120,255,${0.4 + Math.sin(frame * 0.1) * 0.2})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y - 4, 12 + pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y - 4, 7 + pulse * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (e.id === "storm") {
+    // Drone body
+    ctx.fillStyle = "#3a3a66";
+    ctx.fillRect(x - 10, y - 6, 20, 10);
+    ctx.fillStyle = "#4a4a88";
+    ctx.fillRect(x - 8, y - 4, 16, 6);
+    // Propellers (spinning)
+    const spin = frame * 0.3;
+    ctx.fillStyle = "#555";
+    ctx.fillRect(x - 14 + Math.sin(spin) * 2, y - 8, 8, 2);
+    ctx.fillRect(x + 6 + Math.sin(spin + 1) * 2, y - 8, 8, 2);
+    // Red lights
+    ctx.fillStyle = Math.sin(frame * 0.15) > 0 ? "#ff0000" : "#660000";
+    ctx.fillRect(x - 2, y - 2, 4, 3);
+    // EMP field
+    const p = Math.sin(frame * 0.08) * 4;
+    ctx.strokeStyle = `rgba(80,80,255,${0.2 + Math.sin(frame * 0.06) * 0.15})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 16 + p, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(120,120,255,${0.15})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 22 + p, 0, Math.PI * 2);
+    ctx.stroke();
+    // Antenna
+    ctx.fillStyle = "#667";
+    ctx.fillRect(x - 1, y - 10, 2, 5);
   }
 
-  // HP bar
+  // HP bar (better styled)
   const hpPct = e.hp / e.maxHp;
-  ctx.fillStyle = "#333";
-  ctx.fillRect(x - 8, y - 20, 16, 3);
-  ctx.fillStyle = hpPct > 0.5 ? "#0f0" : hpPct > 0.25 ? "#ff0" : "#f00";
-  ctx.fillRect(x - 8, y - 20, 16 * hpPct, 3);
+  const barW = 18;
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(x - barW / 2 - 1, y - 22, barW + 2, 5);
+  ctx.fillStyle = "#222";
+  ctx.fillRect(x - barW / 2, y - 21, barW, 3);
+  const hpCol = hpPct > 0.6 ? "#00dd44" : hpPct > 0.3 ? "#ddaa00" : "#dd2200";
+  ctx.fillStyle = hpCol;
+  ctx.fillRect(x - barW / 2, y - 21, barW * hpPct, 3);
 }
 
 function drawProjectiles() {
   for (const p of projectiles) {
+    // Trail
+    const dx = p.tx - p.x, dy = p.ty - p.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 1) {
+      ctx.strokeStyle = `${p.color}44`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x - (dx / dist) * 8, p.y - (dy / dist) * 8);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+    // Core
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Outer glow
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
     ctx.fill();
-    // Glow
-    ctx.fillStyle = `${p.color}44`;
+    ctx.fillStyle = `${p.color}33`;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
     ctx.fill();
   }
 }
 
 function drawParticles() {
   for (const p of particles) {
-    ctx.globalAlpha = p.life / 25;
+    ctx.globalAlpha = Math.min(1, p.life / 15);
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    // Glow
+    ctx.fillStyle = `${p.color}44`;
+    ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
   }
   ctx.globalAlpha = 1;
 }
@@ -721,29 +1014,54 @@ function drawPlacementPreview() {
   const y = r * CELL + CELL / 2;
 
   // Range circle
-  ctx.strokeStyle = canPlace ? "rgba(0,255,136,0.2)" : "rgba(255,0,0,0.2)";
+  ctx.save();
+  ctx.strokeStyle = canPlace ? "rgba(0,255,136,0.25)" : "rgba(255,0,0,0.25)";
+  ctx.fillStyle = canPlace ? "rgba(0,255,136,0.05)" : "rgba(255,0,0,0.05)";
   ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.arc(x, y, def.range, 0, Math.PI * 2);
+  ctx.fill();
   ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
 
   // Ghost tower
-  ctx.globalAlpha = 0.5;
+  ctx.globalAlpha = 0.4;
   ctx.fillStyle = canPlace ? def.color : "#ff0000";
-  ctx.fillRect(c * CELL + 4, r * CELL + 4, CELL - 8, CELL - 8);
+  ctx.fillRect(c * CELL + 6, r * CELL + 6, CELL - 12, CELL - 12);
   ctx.globalAlpha = 1;
+
+  // Cost text
+  ctx.fillStyle = canPlace ? "#ffdd57" : "#ff4444";
+  ctx.font = "bold 9px 'Courier New'";
+  ctx.textAlign = "center";
+  ctx.fillText(`$${def.cost}`, x, r * CELL - 2);
 }
 
 function drawChargeBar() {
-  // Charge bar at the chip location
   const chipCell = { r: 8, c: 15 };
   const cx = chipCell.c * CELL + CELL / 2;
-  const cy = chipCell.r * CELL - 6;
-  const barW = 30;
-  ctx.fillStyle = "#333";
-  ctx.fillRect(cx - barW / 2, cy, barW, 4);
-  ctx.fillStyle = charge > 50 ? "#00ff88" : charge > 25 ? "#ffdd00" : "#ff4444";
-  ctx.fillRect(cx - barW / 2, cy, barW * (charge / 100), 4);
+  const cy = chipCell.r * CELL - 8;
+  const barW = 34;
+  // Background
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(cx - barW / 2 - 1, cy - 1, barW + 2, 7);
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(cx - barW / 2, cy, barW, 5);
+  // Fill
+  const chargePct = charge / 100;
+  const col = charge > 50 ? "#00ff88" : charge > 25 ? "#ffdd00" : "#ff4444";
+  ctx.fillStyle = col;
+  ctx.fillRect(cx - barW / 2, cy, barW * chargePct, 5);
+  // Shine
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.fillRect(cx - barW / 2, cy, barW * chargePct, 2);
+  // Label
+  ctx.fillStyle = col;
+  ctx.font = "bold 7px 'Courier New'";
+  ctx.textAlign = "center";
+  ctx.fillText(`${charge}%`, cx, cy - 3);
 }
 
 // ─── Main Draw ───────────────────────────────────────────────────

@@ -540,6 +540,91 @@
         },
       },
       {
+        id: "slither",
+        name: "Slither N Spark",
+        desc: "You're a live wire on a circuit board. Eat sparks to grow — but the tide is rising!",
+        tags: ["SNAKE", "RISING TIDE", "WIRES"],
+        path: "/games/slither/",
+        drawPreview(ctx, w, h, t) {
+          // PCB background
+          ctx.fillStyle = "#0a1a12";
+          ctx.fillRect(0, 0, w, h);
+          ctx.strokeStyle = "#0f2a1a";
+          ctx.lineWidth = 1;
+          for (let x = 0; x < w; x += 16) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+          for (let y = 0; y < h; y += 16) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+          // Wire (animated S-curve)
+          const wireLen = 8;
+          const headX = w * 0.5 + Math.sin(t * 0.002) * w * 0.2;
+          const headY = h * 0.35 + Math.cos(t * 0.003) * h * 0.1;
+          ctx.lineWidth = 6;
+          ctx.strokeStyle = "#444";
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(headX, headY);
+          for (let i = 1; i <= wireLen; i++) {
+            const sx = headX - i * 12 + Math.sin(t * 0.002 + i * 0.5) * 6;
+            const sy = headY + Math.sin(i * 0.8) * 8;
+            ctx.lineTo(sx, sy);
+          }
+          ctx.stroke();
+          // Copper core
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#b87333";
+          ctx.beginPath();
+          ctx.moveTo(headX, headY);
+          for (let i = 1; i <= wireLen; i++) {
+            const sx = headX - i * 12 + Math.sin(t * 0.002 + i * 0.5) * 6;
+            const sy = headY + Math.sin(i * 0.8) * 8;
+            ctx.lineTo(sx, sy);
+          }
+          ctx.stroke();
+          // Head glow
+          ctx.fillStyle = "#ffdd44";
+          ctx.beginPath();
+          ctx.arc(headX, headY, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(headX, headY, 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Sparks (food)
+          for (let i = 0; i < 3; i++) {
+            const sx = w * 0.25 + i * w * 0.25;
+            const sy = h * 0.25 + Math.sin(i * 2 + t * 0.004) * 10;
+            const col = ["#ffdd44", "#44aaff", "#ff4466"][i];
+            ctx.fillStyle = col + "44";
+            ctx.beginPath();
+            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Rising tide
+          const tideY = h * 0.7 + Math.sin(t * 0.002) * 4;
+          ctx.fillStyle = "rgba(20,60,120,0.7)";
+          ctx.beginPath();
+          ctx.moveTo(0, tideY);
+          for (let x = 0; x <= w; x += 8) {
+            ctx.lineTo(x, tideY + Math.sin(x * 0.04 + t * 0.006) * 3);
+          }
+          ctx.lineTo(w, h); ctx.lineTo(0, h);
+          ctx.fill();
+          ctx.fillStyle = "rgba(40,100,180,0.5)";
+          ctx.fillRect(0, tideY + 4, w, h - tideY);
+          // Foam
+          ctx.fillStyle = "rgba(180,220,255,0.3)";
+          for (let x = 0; x < w; x += 10) {
+            ctx.fillRect(x, tideY + Math.sin(x * 0.04 + t * 0.006) * 3 - 1, 5, 2);
+          }
+        },
+      },
+      {
         id: "coming-soon-1",
         name: "???",
         desc: "Something new is coming...",

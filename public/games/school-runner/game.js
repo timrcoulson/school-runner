@@ -758,13 +758,15 @@ function drawSidewalk(side) {
   }
   ctx.fill();
 
-  // Sidewalk cross-lines
-  ctx.strokeStyle = "#887766";
+  // Sidewalk cross-lines — only draw close enough to see
   ctx.lineWidth = 1;
-  const markSpacing = 0.06;
+  const markSpacing = 0.08;
   const markStart = (roadMarkingOffset % markSpacing);
   for (let d = markStart; d < 1; d += markSpacing) {
+    if (d < 0.2) continue;
     const t = d;
+    const fade = t < 0.4 ? (t - 0.2) / 0.2 : 1;
+    ctx.strokeStyle = `rgba(136,119,102,${fade * 0.6})`;
     const screenY = VP_Y + (ROAD_BOTTOM - VP_Y) * t;
     const roadW = ROAD_W_TOP + (ROAD_W_BOTTOM - ROAD_W_TOP) * t;
     const sidewalkW = 6 + 14 * t;
@@ -778,18 +780,20 @@ function drawSidewalk(side) {
 }
 
 function drawLaneDashes() {
-  ctx.strokeStyle = "rgba(255,255,255,0.35)";
   ctx.lineWidth = 1.5;
 
-  // Two lane dividers (between 3 lanes)
   for (const laneDiv of [-1 / 3, 1 / 3]) {
-    const dashSpacing = 0.04;
-    const dashLen = 0.02;
+    const dashSpacing = 0.06;
+    const dashLen = 0.025;
     const offset = (roadMarkingOffset % dashSpacing);
 
     for (let d = offset; d < 1; d += dashSpacing) {
+      if (d < 0.15) continue;
       const t1 = d;
       const t2 = Math.min(d + dashLen, 1);
+      const fade = t1 < 0.35 ? (t1 - 0.15) / 0.2 : 1;
+
+      ctx.strokeStyle = `rgba(255,255,255,${fade * 0.35})`;
 
       const y1 = VP_Y + (ROAD_BOTTOM - VP_Y) * t1;
       const y2 = VP_Y + (ROAD_BOTTOM - VP_Y) * t2;
@@ -809,11 +813,13 @@ function drawLaneDashes() {
 function drawGrassStripes() {
   const groundColors = getBiomeColor("ground");
   ctx.fillStyle = groundColors[1];
-  ctx.globalAlpha = 0.3;
-  const stripeSpacing = 0.07;
+  const stripeSpacing = 0.09;
   const offset = (roadMarkingOffset) % stripeSpacing;
   for (let d = offset; d < 1; d += stripeSpacing) {
+    if (d < 0.2) continue;
     const t = d;
+    const fade = t < 0.4 ? (t - 0.2) / 0.2 : 1;
+    ctx.globalAlpha = fade * 0.25;
     const screenY = VP_Y + (ROAD_BOTTOM - VP_Y) * t;
     const roadW = ROAD_W_TOP + (ROAD_W_BOTTOM - ROAD_W_TOP) * t;
     const sw = 6 + 14 * t;
@@ -827,7 +833,7 @@ function drawGrassStripes() {
 // ─── Drawing: Scenery (biome-aware) ──────────────────────────────
 function drawSceneryItem(item) {
   const t = item.depth;
-  if (t < 0.02 || t > 1.05) return;
+  if (t < 0.12 || t > 1.05) return;
   const screenY = VP_Y + (ROAD_BOTTOM - VP_Y) * t;
   const roadW = ROAD_W_TOP + (ROAD_W_BOTTOM - ROAD_W_TOP) * t;
   const screenX = VP_X + item.side * (roadW / 2) * item.offset;

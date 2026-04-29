@@ -379,45 +379,162 @@
         tags: ["TOWER DEFENSE", "STRATEGY", "WAVES"],
         path: "/games/chip-defense/",
         drawPreview(ctx, w, h, t) {
-          // Dark green grid
+          // Grass background with texture
           ctx.fillStyle = "#2a4a2a";
           ctx.fillRect(0, 0, w, h);
-          // Path
-          ctx.fillStyle = "#4a4a3a";
-          ctx.fillRect(0, h*0.35, w*0.3, h*0.15);
-          ctx.fillRect(w*0.25, h*0.35, h*0.15, h*0.4);
-          ctx.fillRect(w*0.25, h*0.6, w*0.4, h*0.15);
-          ctx.fillRect(w*0.6, h*0.3, h*0.15, h*0.45);
-          ctx.fillRect(w*0.6, h*0.3, w*0.3, h*0.15);
-          // Chip
+          ctx.fillStyle = "#325a32";
+          for (let gx = 0; gx < w; gx += 18) {
+            for (let gy = 0; gy < h; gy += 16) {
+              if ((gx + gy) % 36 === 0) ctx.fillRect(gx + 4, gy + 3, 2, 4);
+            }
+          }
+
+          // Path (S-curve with edges)
+          const pathPts = [
+            [0, h*0.3], [w*0.15, h*0.3], [w*0.15, h*0.65],
+            [w*0.4, h*0.65], [w*0.4, h*0.35], [w*0.65, h*0.35],
+            [w*0.65, h*0.6], [w*0.85, h*0.6],
+          ];
+          ctx.strokeStyle = "#3a352a";
+          ctx.lineWidth = 16;
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(pathPts[0][0], pathPts[0][1]);
+          for (let i = 1; i < pathPts.length; i++) ctx.lineTo(pathPts[i][0], pathPts[i][1]);
+          ctx.stroke();
+          ctx.strokeStyle = "#5a5544";
+          ctx.lineWidth = 12;
+          ctx.beginPath();
+          ctx.moveTo(pathPts[0][0], pathPts[0][1]);
+          for (let i = 1; i < pathPts.length; i++) ctx.lineTo(pathPts[i][0], pathPts[i][1]);
+          ctx.stroke();
+          ctx.strokeStyle = "#6a6555";
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.moveTo(pathPts[0][0], pathPts[0][1]);
+          for (let i = 1; i < pathPts.length; i++) ctx.lineTo(pathPts[i][0], pathPts[i][1]);
+          ctx.stroke();
+
+          // Chip (at end of path)
+          const chipX = w * 0.87, chipY = h * 0.6;
+          ctx.fillStyle = "#0a1a12";
+          ctx.fillRect(chipX - 14, chipY - 10, 28, 20);
           ctx.fillStyle = "#1a3a2a";
-          ctx.fillRect(w*0.85, h*0.3, 24, 18);
-          ctx.fillStyle = "#aabbcc";
-          ctx.fillRect(w*0.86, h*0.33, 18, 12);
-          const glow = 0.2 + Math.sin(t * 0.003) * 0.1;
+          ctx.fillRect(chipX - 12, chipY - 8, 24, 16);
+          ctx.fillStyle = "#99aabb";
+          ctx.fillRect(chipX - 6, chipY - 4, 12, 8);
+          ctx.fillStyle = "#ccd";
+          for (let i = 0; i < 3; i++) {
+            ctx.fillRect(chipX - 14, chipY - 5 + i * 5, 3, 2);
+            ctx.fillRect(chipX + 11, chipY - 5 + i * 5, 3, 2);
+          }
+          const glow = 0.15 + Math.sin(t * 0.003) * 0.1;
           ctx.fillStyle = `rgba(0,255,136,${glow})`;
           ctx.beginPath();
-          ctx.arc(w*0.88, h*0.38, 16, 0, Math.PI*2);
+          ctx.arc(chipX, chipY, 18, 0, Math.PI * 2);
           ctx.fill();
-          // Nerd tower
-          ctx.fillStyle = "#5599dd";
-          ctx.fillRect(w*0.4, h*0.25, 12, 12);
-          ctx.fillStyle = "#ffcc99";
-          ctx.fillRect(w*0.41, h*0.2, 10, 6);
+
+          // Nerd at desk (tower)
+          const tx = w * 0.38, ty = h * 0.42;
+          // Desk
+          ctx.fillStyle = "#5a4a3a";
+          ctx.fillRect(tx - 8, ty + 4, 16, 6);
+          // Monitor
           ctx.fillStyle = "#222";
-          ctx.fillRect(w*0.41, h*0.21, 4, 3);
-          ctx.fillRect(w*0.46, h*0.21, 4, 3);
-          // Enemy
-          const ex = (w*0.15 + ((t*0.02)%1) * w*0.2);
-          ctx.fillStyle = "#8B6B3D";
-          ctx.fillRect(ex, h*0.36, 10, 10);
-          ctx.fillStyle = "#4a7a3a";
-          ctx.fillRect(ex-1, h*0.34, 12, 4);
-          // Projectile
-          if (Math.sin(t*0.005) > 0) {
+          ctx.fillRect(tx - 5, ty - 4, 10, 8);
+          ctx.fillStyle = "#1a3a2a";
+          ctx.fillRect(tx - 4, ty - 3, 8, 6);
+          // Body
+          ctx.fillStyle = "#5599dd";
+          ctx.fillRect(tx - 5, ty - 8, 10, 8);
+          // Head
+          ctx.fillStyle = "#ffcc99";
+          ctx.fillRect(tx - 4, ty - 13, 8, 6);
+          // Glasses
+          ctx.fillStyle = "#111";
+          ctx.fillRect(tx - 4, ty - 12, 3, 2);
+          ctx.fillRect(tx + 1, ty - 12, 3, 2);
+          ctx.fillStyle = "rgba(150,200,255,0.4)";
+          ctx.fillRect(tx - 3, ty - 11, 1, 1);
+          ctx.fillRect(tx + 2, ty - 11, 1, 1);
+
+          // Second nerd
+          const t2x = w * 0.55, t2y = h * 0.2;
+          ctx.fillStyle = "#5a4a3a";
+          ctx.fillRect(t2x - 8, t2y + 4, 16, 6);
+          ctx.fillStyle = "#222";
+          ctx.fillRect(t2x - 5, t2y - 4, 10, 8);
+          ctx.fillStyle = "#0a4a2a";
+          ctx.fillRect(t2x - 4, t2y - 3, 8, 6);
+          ctx.fillStyle = "#dd77dd";
+          ctx.fillRect(t2x - 5, t2y - 8, 10, 8);
+          ctx.fillStyle = "#ffcc99";
+          ctx.fillRect(t2x - 4, t2y - 13, 8, 6);
+          ctx.fillStyle = "#111";
+          ctx.fillRect(t2x - 4, t2y - 12, 3, 2);
+          ctx.fillRect(t2x + 1, t2y - 12, 3, 2);
+
+          // Enemies walking along path
+          const cycle = (t * 0.0008) % 1;
+          for (let ei = 0; ei < 3; ei++) {
+            const ep = ((cycle + ei * 0.15) % 1);
+            const seg = Math.floor(ep * (pathPts.length - 1));
+            const segT = (ep * (pathPts.length - 1)) - seg;
+            const p1 = pathPts[seg], p2 = pathPts[Math.min(seg + 1, pathPts.length - 1)];
+            const ex = p1[0] + (p2[0] - p1[0]) * segT;
+            const ey = p1[1] + (p2[1] - p1[1]) * segT;
+            const bob = Math.sin(t * 0.008 + ei * 2) * 1;
+            if (ei === 0) {
+              // Farmer
+              ctx.fillStyle = "#cc4444";
+              ctx.fillRect(ex - 5, ey - 5 + bob, 10, 10);
+              ctx.fillStyle = "#ffcc99";
+              ctx.fillRect(ex - 4, ey - 10 + bob, 8, 5);
+              ctx.fillStyle = "#ccaa44";
+              ctx.fillRect(ex - 5, ey - 12 + bob, 10, 3);
+            } else if (ei === 1) {
+              // CIA Agent
+              ctx.fillStyle = "#222233";
+              ctx.fillRect(ex - 5, ey - 5 + bob, 10, 10);
+              ctx.fillStyle = "#ffcc99";
+              ctx.fillRect(ex - 4, ey - 10 + bob, 8, 5);
+              ctx.fillStyle = "#000";
+              ctx.fillRect(ex - 4, ey - 9 + bob, 3, 2);
+              ctx.fillRect(ex + 1, ey - 9 + bob, 3, 2);
+              // EMP pulse
+              ctx.strokeStyle = `rgba(100,120,255,${0.2 + Math.sin(t * 0.005 + 1) * 0.15})`;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.arc(ex, ey + bob, 8 + Math.sin(t * 0.006) * 2, 0, Math.PI * 2);
+              ctx.stroke();
+            } else {
+              // Kid
+              ctx.fillStyle = "#ff6644";
+              ctx.fillRect(ex - 5, ey - 5 + bob, 10, 10);
+              ctx.fillStyle = "#ffcc99";
+              ctx.fillRect(ex - 4, ey - 10 + bob, 8, 5);
+              ctx.fillStyle = "#ff2222";
+              ctx.fillRect(ex - 4, ey - 12 + bob, 8, 3);
+              // Balloon
+              ctx.fillStyle = "#ff4466";
+              ctx.beginPath();
+              ctx.arc(ex + 7, ey - 8 + bob, 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+
+          // Projectiles flying
+          const projTime = (t * 0.004) % 1;
+          if (projTime < 0.5) {
+            const px = tx + (pathPts[2][0] - tx) * projTime * 2;
+            const py = ty + (pathPts[2][1] - ty) * projTime * 2;
+            ctx.fillStyle = "#fff";
+            ctx.beginPath();
+            ctx.arc(px, py, 2, 0, Math.PI * 2);
+            ctx.fill();
             ctx.fillStyle = "#88ccff";
             ctx.beginPath();
-            ctx.arc(w*0.38, h*0.35, 2, 0, Math.PI*2);
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
             ctx.fill();
           }
         },

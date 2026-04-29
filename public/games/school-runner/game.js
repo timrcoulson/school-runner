@@ -762,7 +762,7 @@ function drawSidewalk(side) {
   ctx.strokeStyle = "#887766";
   ctx.lineWidth = 1;
   const markSpacing = 0.06;
-  const markStart = ((roadMarkingOffset * 0.5) % markSpacing);
+  const markStart = (roadMarkingOffset % markSpacing);
   for (let d = markStart; d < 1; d += markSpacing) {
     const t = d;
     const screenY = VP_Y + (ROAD_BOTTOM - VP_Y) * t;
@@ -811,7 +811,7 @@ function drawGrassStripes() {
   ctx.fillStyle = groundColors[1];
   ctx.globalAlpha = 0.3;
   const stripeSpacing = 0.07;
-  const offset = (roadMarkingOffset * 0.3) % stripeSpacing;
+  const offset = (roadMarkingOffset) % stripeSpacing;
   for (let d = offset; d < 1; d += stripeSpacing) {
     const t = d;
     const screenY = VP_Y + (ROAD_BOTTOM - VP_Y) * t;
@@ -831,7 +831,7 @@ function drawSceneryItem(item) {
   const screenY = VP_Y + (ROAD_BOTTOM - VP_Y) * t;
   const roadW = ROAD_W_TOP + (ROAD_W_BOTTOM - ROAD_W_TOP) * t;
   const screenX = VP_X + item.side * (roadW / 2) * item.offset;
-  const sz = t * 0.9;
+  const sz = t * 1.6;
   const x = screenX, y = screenY;
   const h = item.height;
 

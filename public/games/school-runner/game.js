@@ -807,8 +807,10 @@ function drawLaneDashes() {
 }
 
 function drawGrassStripes() {
-  ctx.fillStyle = "#4a8a4a";
-  const stripeSpacing = 0.05;
+  const groundColors = getBiomeColor("ground");
+  ctx.fillStyle = groundColors[1];
+  ctx.globalAlpha = 0.3;
+  const stripeSpacing = 0.07;
   const offset = (roadMarkingOffset * 0.3) % stripeSpacing;
   for (let d = offset; d < 1; d += stripeSpacing) {
     const t = d;
@@ -816,11 +818,10 @@ function drawGrassStripes() {
     const roadW = ROAD_W_TOP + (ROAD_W_BOTTOM - ROAD_W_TOP) * t;
     const sw = 6 + 14 * t;
     const h = 1 + 2 * t;
-    // Left grass stripe
     ctx.fillRect(0, screenY, VP_X - roadW / 2 - sw, h);
-    // Right
     ctx.fillRect(VP_X + roadW / 2 + sw, screenY, GAME_W, h);
   }
+  ctx.globalAlpha = 1;
 }
 
 // ─── Drawing: Scenery (biome-aware) ──────────────────────────────

@@ -29,7 +29,7 @@ const TNT_ACCENT = "#ffaa00";
 const EXPLOSION_RADIUS = 3; // cells in each direction
 
 // ─── State ───────────────────────────────────────────────────────
-let board = [];       // ROWS x COLS, 0 = empty, string = color
+let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 let current = null;   // { shape, color, x, y, isTNT }
 let next = null;
 let state = "menu";   // menu | playing | gameover

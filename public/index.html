@@ -327,6 +327,52 @@
         },
       },
       {
+        id: "flappy",
+        name: "Flappy Microchip",
+        desc: "A tiny chip with big dreams. Tap to flap through the pipes!",
+        tags: ["FLAPPY", "ONE-TAP", "HIGHSCORE"],
+        path: "/games/flappy/",
+        drawPreview(ctx, w, h, t) {
+          // Sky
+          const grad = ctx.createLinearGradient(0, 0, 0, h * 0.85);
+          grad.addColorStop(0, "#4a90d9");
+          grad.addColorStop(1, "#B8E6FF");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h * 0.85);
+          // Ground
+          ctx.fillStyle = "#8B7355";
+          ctx.fillRect(0, h * 0.85, w, h * 0.15);
+          ctx.fillStyle = "#4a8a4a";
+          ctx.fillRect(0, h * 0.85, w, 4);
+          // Pipes
+          const pipeW = 28;
+          for (let i = 0; i < 3; i++) {
+            const px = 80 + i * 90;
+            const gap = 50;
+            const topH = 40 + Math.sin(i * 1.5) * 20;
+            ctx.fillStyle = "#3CB043";
+            ctx.fillRect(px, 0, pipeW, topH);
+            ctx.fillRect(px - 3, topH - 8, pipeW + 6, 8);
+            ctx.fillRect(px, topH + gap, pipeW, h);
+            ctx.fillRect(px - 3, topH + gap, pipeW + 6, 8);
+          }
+          // Microchip
+          const cy = h * 0.4 + Math.sin(t * 0.004) * 12;
+          const cx = 60;
+          ctx.fillStyle = "#1a3a2a";
+          ctx.fillRect(cx - 10, cy - 7, 20, 14);
+          ctx.fillStyle = "#aabbcc";
+          ctx.fillRect(cx - 6, cy - 5, 12, 10);
+          ctx.fillStyle = "#ccc";
+          for (let p = 0; p < 3; p++) {
+            ctx.fillRect(cx - 13, cy - 5 + p * 4, 4, 2);
+            ctx.fillRect(cx + 9, cy - 5 + p * 4, 4, 2);
+          }
+          ctx.fillStyle = "#ff4444";
+          ctx.fillRect(cx - 8, cy - 5, 2, 2);
+        },
+      },
+      {
         id: "coming-soon-1",
         name: "???",
         desc: "Something new is coming...",

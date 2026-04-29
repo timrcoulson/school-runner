@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Flappy Microchip — The Arcade</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+    }
+    #back-btn {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.5);
+      color: #ffdd57;
+      border: 2px solid #ffdd57;
+      padding: 6px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      z-index: 50;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+    #back-btn:hover { background: rgba(255,221,87,0.15); }
+    #game-container {
+      position: relative;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      border: 3px solid #e94560;
+      border-radius: 4px;
+    }
+    #overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10,10,26,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      gap: 14px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay h1 {
+      color: #e94560;
+      font-size: 24px;
+      text-shadow: 3px 3px 0 #000;
+      text-align: center;
+      line-height: 1.3;
+    }
+    #overlay p {
+      color: #ccc;
+      font-size: 12px;
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.6;
+    }
+    .btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .subtitle { color: #aaa; font-size: 10px; }
+    #final-score {
+      color: #fff;
+      font-size: 48px;
+      font-weight: bold;
+      text-shadow: 3px 3px 0 #e94560;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="/">BACK</a>
+  <div id="game-container">
+    <canvas id="game"></canvas>
+    <div id="overlay" id="start-overlay">
+      <h1>FLAPPY<br>MICROCHIP</h1>
+      <p>Tap, click, or press space to flap. Don't hit the pipes!</p>
+      <p class="subtitle">A tiny chip with big dreams</p>
+      <button class="btn" id="start-btn">FLAP!</button>
+    </div>
+    <div id="overlay-dead" class="hidden">
+      <h1>CRASHED!</h1>
+      <div id="final-score">0</div>
+      <p id="death-msg">Your chip overheated.</p>
+      <button class="btn" id="retry-btn">RETRY</button>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

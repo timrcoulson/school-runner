@@ -332,6 +332,13 @@ function nextWave() {
 }
 
 // ─── Canvas Input ────────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    selectedDefender = null;
+    document.querySelectorAll(".shop-btn").forEach((b) => b.classList.remove("selected"));
+  }
+});
+
 canvas.addEventListener("mousemove", (e) => {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
@@ -342,11 +349,20 @@ canvas.addEventListener("mousemove", (e) => {
 });
 
 canvas.addEventListener("click", (e) => {
-  if (state !== "playing" || selectedDefender === null || !hoverCell) return;
+  if (state !== "playing" || !hoverCell) return;
   const { r, c } = hoverCell;
   if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
-  if (MAP[r][c] !== 0) return; // can only build on grass
-  if (towers.some((t) => t.r === r && t.c === c)) return; // occupied
+
+  // Click on existing tower with no defender selected = sell it
+  const existingIdx = towers.findIndex((t) => t.r === r && t.c === c);
+  if (existingIdx !== -1 && selectedDefender === null) {
+    sellTower(existingIdx);
+    return;
+  }
+
+  if (selectedDefender === null) return;
+  if (MAP[r][c] !== 0) return;
+  if (existingIdx !== -1) return;
 
   const def = DEFENDERS[selectedDefender];
   if (money < def.cost) return;
@@ -362,6 +378,32 @@ canvas.addEventListener("click", (e) => {
   });
   updateShopUI();
 });
+
+// Right-click to sell
+canvas.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  if (state !== "playing" || !hoverCell) return;
+  const { r, c } = hoverCell;
+  const idx = towers.findIndex((t) => t.r === r && t.c === c);
+  if (idx !== -1) sellTower(idx);
+});
+
+function sellTower(idx) {
+  const tower = towers[idx];
+  const refund = Math.floor(tower.type.cost / 2);
+  money += refund;
+  // Sell particles
+  for (let i = 0; i < 6; i++) {
+    particles.push({
+      x: tower.x, y: tower.y,
+      vx: (Math.random() - 0.5) * 3,
+      vy: -Math.random() * 3 - 1,
+      life: 20, color: "#ffdd57", size: 3,
+    });
+  }
+  towers.splice(idx, 1);
+  updateShopUI();
+}
 
 // ─── Update ──────────────────────────────────────────────────────
 function update() {
@@ -1024,6 +1066,23 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+function drawSellPreview() {
+  if (state !== "playing" || selectedDefender !== null || !hoverCell) return;
+  const { r, c } = hoverCell;
+  const tower = towers.find((t) => t.r === r && t.c === c);
+  if (!tower) return;
+  const x = c * CELL, y = r * CELL;
+  const refund = Math.floor(tower.type.cost / 2);
+  // Red tint
+  ctx.fillStyle = "rgba(255,50,50,0.15)";
+  ctx.fillRect(x, y, CELL, CELL);
+  // Sell text
+  ctx.fillStyle = "#ffdd57";
+  ctx.font = "bold 9px 'Courier New'";
+  ctx.textAlign = "center";
+  ctx.fillText(`SELL +$${refund}`, x + CELL / 2, y - 3);
+}
+
 function drawPlacementPreview() {
   if (state !== "playing" || selectedDefender === null || !hoverCell) return;
   const { r, c } = hoverCell;
@@ -1089,6 +1148,7 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMap();
   drawPlacementPreview();
+  drawSellPreview();
 
   for (const tower of towers) drawTower(tower);
   for (const e of enemies) drawEnemy(e);

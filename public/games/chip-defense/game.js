@@ -489,6 +489,11 @@ function update() {
     if (p.life <= 0) particles.splice(i, 1);
   }
 
+  // Slow charge regeneration (1 HP every 3 seconds at 60fps)
+  if (frame % 180 === 0 && charge < 100) {
+    charge = Math.min(100, charge + 1);
+  }
+
   // Check wave complete
   if (waveEnemies.length === 0 && enemies.length === 0 && waveDelay <= 0) {
     // Bonus money between waves

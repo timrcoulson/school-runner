@@ -23,15 +23,15 @@ window.addEventListener("resize", resize);
 resize();
 
 // ─── Constants ───────────────────────────────────────────────────
-const GRAVITY = 0.45;
-const FLAP_FORCE = -7.5;
+const GRAVITY = 0.35;
+const FLAP_FORCE = -6.5;
 const CHIP_X = 80;
 const CHIP_W = 32;
 const CHIP_H = 24;
 const PIPE_W = 52;
-const PIPE_GAP = 140;
-const PIPE_SPEED = 2.5;
-const PIPE_SPACING = 200; // horizontal distance between pipes
+const PIPE_GAP = 170;
+const PIPE_SPEED = 2;
+const PIPE_SPACING = 220;
 const GROUND_H = 60;
 
 // ─── State ───────────────────────────────────────────────────────
@@ -117,8 +117,11 @@ function spawnPipe(x) {
 
 // ─── Input ───────────────────────────────────────────────────────
 function flap() {
-  if (state !== "playing") return;
-  chipVy = FLAP_FORCE;
+  if (state === "playing") {
+    chipVy = FLAP_FORCE;
+  } else if (state === "dead" && overlayDead.classList.contains("hidden") === false) {
+    startGame();
+  }
 }
 
 document.addEventListener("keydown", (e) => {

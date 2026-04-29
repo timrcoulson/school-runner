@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Chip Defense — The Arcade</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+      color: #fff;
+      min-height: 100vh;
+    }
+    #back-btn {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.5);
+      color: #ffdd57;
+      border: 2px solid #ffdd57;
+      padding: 4px 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      z-index: 50;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+    #back-btn:hover { background: rgba(255,221,87,0.15); }
+    #hud {
+      display: flex;
+      gap: 16px;
+      padding: 8px 16px;
+      margin-top: 32px;
+      background: rgba(20,20,40,0.9);
+      border: 2px solid #2a2a4a;
+      border-radius: 4px;
+      font-size: 13px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .hud-item { display: flex; align-items: center; gap: 4px; }
+    .hud-label { color: #888; font-size: 10px; }
+    .hud-val { font-weight: bold; }
+    .hud-charge { color: #00ff88; }
+    .hud-money { color: #ffdd57; }
+    .hud-wave { color: #e94560; }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      border: 2px solid #2a2a4a;
+      border-radius: 4px;
+      margin-top: 8px;
+      cursor: crosshair;
+    }
+    #shop {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .shop-btn {
+      background: #14142a;
+      border: 2px solid #2a2a4a;
+      color: #ccc;
+      padding: 6px 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      text-align: center;
+      min-width: 80px;
+      transition: border-color 0.15s;
+    }
+    .shop-btn:hover { border-color: #e94560; }
+    .shop-btn.selected { border-color: #ffdd57; background: rgba(255,221,87,0.1); }
+    .shop-btn.disabled { opacity: 0.35; cursor: default; }
+    .shop-name { font-weight: bold; color: #fff; font-size: 11px; }
+    .shop-cost { color: #ffdd57; font-size: 10px; }
+    .shop-stat { color: #888; font-size: 9px; }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10,10,26,0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      gap: 14px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay h1 {
+      color: #e94560;
+      font-size: 26px;
+      text-shadow: 3px 3px 0 #000;
+      text-align: center;
+    }
+    #overlay p {
+      color: #ccc;
+      font-size: 12px;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+    .subtitle { color: #888; font-size: 10px; }
+    .btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .btn-secondary { background: transparent; border: 2px solid #e94560; padding: 10px 30px; font-size: 14px; }
+    #final-score { color: #fff; font-size: 42px; font-weight: bold; text-shadow: 3px 3px 0 #e94560; }
+    #wave-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #e94560;
+      font-size: 22px;
+      font-weight: bold;
+      text-shadow: 0 0 20px #e94560;
+      pointer-events: none;
+      z-index: 25;
+      opacity: 0;
+      transition: opacity 0.3s;
+      letter-spacing: 3px;
+    }
+    /* Leaderboard */
+    .lb-title { color: #ffdd57; font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 6px; letter-spacing: 2px; }
+    .lb-row { display: flex; justify-content: space-between; padding: 3px 6px; color: #ccc; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .lb-row:nth-child(2) { color: #ffdd57; }
+    .lb-rank { width: 22px; text-align: right; margin-right: 6px; }
+    .lb-name { flex: 1; }
+    .lb-score { font-weight: bold; color: #fff; }
+    .lb-loading { color: #888; font-size: 11px; text-align: center; padding: 10px; }
+    #name-input { background: rgba(255,255,255,0.1); border: 2px solid #e94560; color: #fff; padding: 8px 12px; font-size: 14px; font-family: 'Courier New', monospace; text-align: center; text-transform: uppercase; width: 180px; border-radius: 4px; outline: none; letter-spacing: 2px; }
+    #name-input::placeholder { color: #666; text-transform: none; letter-spacing: 1px; }
+    #name-input:focus { border-color: #ffdd57; }
+    #submit-msg { color: #aaa; font-size: 10px; height: 12px; }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="/">BACK</a>
+  <div id="wave-banner"></div>
+
+  <div id="hud">
+    <div class="hud-item"><span class="hud-label">CHARGE</span> <span class="hud-val hud-charge" id="hud-charge">100</span></div>
+    <div class="hud-item"><span class="hud-label">MONEY</span> <span class="hud-val hud-money" id="hud-money">$150</span></div>
+    <div class="hud-item"><span class="hud-label">WAVE</span> <span class="hud-val hud-wave" id="hud-wave">1</span></div>
+    <div class="hud-item"><span class="hud-label">SCORE</span> <span class="hud-val" id="hud-score">0</span></div>
+  </div>
+
+  <canvas id="game"></canvas>
+
+  <div id="shop"></div>
+
+  <div id="overlay">
+    <h1>CHIP DEFENSE</h1>
+    <p>Protect your microchip from farmers, agents, and EMPs! Place nerds to defend it.</p>
+    <p class="subtitle">Click a defender below, then click the map to place them</p>
+    <button class="btn" id="start-btn">DEFEND!</button>
+    <div id="start-leaderboard" style="width:240px">
+      <div class="lb-loading">Loading leaderboard...</div>
+    </div>
+  </div>
+
+  <div id="overlay-dead" class="hidden">
+    <h1>CHIP FRIED!</h1>
+    <div id="final-score">0</div>
+    <p id="death-msg">Your chip ran out of charge.</p>
+    <div>
+      <input type="text" id="name-input" maxlength="12" placeholder="Your name" autocomplete="off" />
+      <button class="btn" id="submit-score-btn" style="margin-top:8px">SUBMIT SCORE</button>
+      <div id="submit-msg"></div>
+    </div>
+    <button class="btn btn-secondary" id="retry-btn">TRY AGAIN</button>
+    <div id="leaderboard" style="width:240px">
+      <div class="lb-loading">Loading...</div>
+    </div>
+  </div>
+
+  <script src="/shared/leaderboard.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

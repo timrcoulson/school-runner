@@ -373,6 +373,56 @@
         },
       },
       {
+        id: "chip-defense",
+        name: "Chip Defense",
+        desc: "Tower defense! Place nerds to protect your microchip from farmers, agents & EMPs.",
+        tags: ["TOWER DEFENSE", "STRATEGY", "WAVES"],
+        path: "/games/chip-defense/",
+        drawPreview(ctx, w, h, t) {
+          // Dark green grid
+          ctx.fillStyle = "#2a4a2a";
+          ctx.fillRect(0, 0, w, h);
+          // Path
+          ctx.fillStyle = "#4a4a3a";
+          ctx.fillRect(0, h*0.35, w*0.3, h*0.15);
+          ctx.fillRect(w*0.25, h*0.35, h*0.15, h*0.4);
+          ctx.fillRect(w*0.25, h*0.6, w*0.4, h*0.15);
+          ctx.fillRect(w*0.6, h*0.3, h*0.15, h*0.45);
+          ctx.fillRect(w*0.6, h*0.3, w*0.3, h*0.15);
+          // Chip
+          ctx.fillStyle = "#1a3a2a";
+          ctx.fillRect(w*0.85, h*0.3, 24, 18);
+          ctx.fillStyle = "#aabbcc";
+          ctx.fillRect(w*0.86, h*0.33, 18, 12);
+          const glow = 0.2 + Math.sin(t * 0.003) * 0.1;
+          ctx.fillStyle = `rgba(0,255,136,${glow})`;
+          ctx.beginPath();
+          ctx.arc(w*0.88, h*0.38, 16, 0, Math.PI*2);
+          ctx.fill();
+          // Nerd tower
+          ctx.fillStyle = "#5599dd";
+          ctx.fillRect(w*0.4, h*0.25, 12, 12);
+          ctx.fillStyle = "#ffcc99";
+          ctx.fillRect(w*0.41, h*0.2, 10, 6);
+          ctx.fillStyle = "#222";
+          ctx.fillRect(w*0.41, h*0.21, 4, 3);
+          ctx.fillRect(w*0.46, h*0.21, 4, 3);
+          // Enemy
+          const ex = (w*0.15 + ((t*0.02)%1) * w*0.2);
+          ctx.fillStyle = "#8B6B3D";
+          ctx.fillRect(ex, h*0.36, 10, 10);
+          ctx.fillStyle = "#4a7a3a";
+          ctx.fillRect(ex-1, h*0.34, 12, 4);
+          // Projectile
+          if (Math.sin(t*0.005) > 0) {
+            ctx.fillStyle = "#88ccff";
+            ctx.beginPath();
+            ctx.arc(w*0.38, h*0.35, 2, 0, Math.PI*2);
+            ctx.fill();
+          }
+        },
+      },
+      {
         id: "coming-soon-1",
         name: "???",
         desc: "Something new is coming...",

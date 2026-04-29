@@ -2,7 +2,7 @@ import { Redis } from "@upstash/redis";
 
 const LEADERBOARD_PREFIX = "school-runner:leaderboard";
 const DEFAULT_GAME = "school-runner";
-const ALLOWED_GAMES = ["school-runner", "tetris", "flappy"];
+const ALLOWED_GAMES = ["school-runner", "tetris", "flappy", "chip-defense"];
 const MAX_ENTRIES = 20;
 
 function leaderboardKey(gameId) {

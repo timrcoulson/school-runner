@@ -65,6 +65,7 @@ document.getElementById("start-btn").addEventListener("click", startGame);
 document.getElementById("retry-btn").addEventListener("click", startGame);
 
 function startGame() {
+  ArcadeMusic.play("tetris");
   board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
   score = 0;
   lines = 0;
@@ -84,6 +85,7 @@ function startGame() {
 }
 
 function gameOver() {
+  ArcadeMusic.stop();
   state = "gameover";
   finalScoreEl.textContent = score;
   overlayGO.classList.remove("hidden");
@@ -686,4 +688,13 @@ async function handleSubmit() {
 }
 
 LB.fetchLeaderboard(GAME_ID, "start-leaderboard");
+
+// ─── Mute Button ──────────────────────────────────────────────
+const muteBtn = document.getElementById("mute-btn");
+if (ArcadeMusic.isMuted()) muteBtn.style.opacity = "0.4";
+muteBtn.addEventListener("click", () => {
+  const on = ArcadeMusic.toggle();
+  muteBtn.style.opacity = on ? "1" : "0.4";
+});
+
 loop();

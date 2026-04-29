@@ -398,6 +398,7 @@ document.getElementById("start-btn").addEventListener("click", startGame);
 document.getElementById("retry-btn").addEventListener("click", startGame);
 
 function startGame() {
+  ArcadeMusic.play("school-runner");
   state = "playing";
   score = 0;
   speed = SPEED_START;
@@ -423,6 +424,7 @@ function startGame() {
 }
 
 function die(obstacle) {
+  ArcadeMusic.stop();
   state = "dead";
   deathMessage = obstacle.deathMsg;
   screenShake = 15;
@@ -1265,4 +1267,13 @@ function loop() {
 initScenery();
 hiScoreDisplay.textContent = `HI: ${hiScore}`;
 LB.fetchLeaderboard(GAME_ID, "start-leaderboard");
+
+// ─── Mute Button ──────────────────────────────────────────────
+const muteBtn = document.getElementById("mute-btn");
+if (ArcadeMusic.isMuted()) muteBtn.style.opacity = "0.4";
+muteBtn.addEventListener("click", () => {
+  const on = ArcadeMusic.toggle();
+  muteBtn.style.opacity = on ? "1" : "0.4";
+});
+
 loop();

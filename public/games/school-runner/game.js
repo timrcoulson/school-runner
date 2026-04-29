@@ -270,19 +270,119 @@ let player = {
   bobFrame: 0,
 };
 
-// Scenery (trees/bushes on road sides)
+// ─── Biome System ────────────────────────────────────────────────
+const BIOMES = [
+  {
+    name: "Edinburgh",
+    sky: ["#6a7a9a", "#8a9aba", "#b0c0d0"],    // grey Scottish sky
+    ground: ["#5a7a5a", "#4a6a4a", "#3a5a3a"],
+    road: "#555566",
+    sidewalk: "#aa9988",
+    banner: "EDINBURGH",
+  },
+  {
+    name: "Forest",
+    sky: ["#4a80a0", "#6aaa80", "#8ac8a0"],
+    ground: ["#2a6a2a", "#1a5a1a", "#0a4a0a"],
+    road: "#4a4a3a",
+    sidewalk: "#776655",
+    banner: "CORSTORPHINE WOODS",
+  },
+  {
+    name: "Loch",
+    sky: ["#5a8ab0", "#7aaaca", "#a0cce0"],
+    ground: ["#3a6a5a", "#2a5a4a", "#1a4a3a"],
+    road: "#555560",
+    sidewalk: "#887766",
+    banner: "LOCHSIDE PATH",
+  },
+  {
+    name: "Village",
+    sky: ["#7090c0", "#90b0d8", "#c0d8f0"],
+    ground: ["#6a9a5a", "#5a8a4a", "#4a7a3a"],
+    road: "#666666",
+    sidewalk: "#bbaa99",
+    banner: "CRAMOND VILLAGE",
+  },
+];
+
+let currentBiome = 0;
+let nextBiome = 1;
+let biomeTransition = 0; // 0 = fully current, 1 = fully next
+let biomeTimer = 0;
+const BIOME_DURATION = 800;  // frames per biome
+const BIOME_FADE = 120;       // frames to transition
+
+function getBiomeColor(prop) {
+  const curr = BIOMES[currentBiome];
+  const next = BIOMES[nextBiome];
+  const t = biomeTransition;
+  if (typeof curr[prop] === "string") {
+    return t < 0.5 ? curr[prop] : next[prop];
+  }
+  // Interpolate arrays (gradient stops)
+  return curr[prop].map((c, i) => lerpColor(c, next[prop][i], t));
+}
+
+function lerpColor(a, b, t) {
+  const pa = parseColor(a), pb = parseColor(b);
+  const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
+  const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
+  const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function parseColor(hex) {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+
+let biomeBannerTimer = 0;
+
+// Scenery items (buildings, trees, etc)
 let sceneryItems = [];
 
 function initScenery() {
   sceneryItems = [];
-  for (let i = 0; i < 20; i++) {
-    sceneryItems.push({
-      depth: Math.random(),
-      side: Math.random() > 0.5 ? -1 : 1,
-      offset: 1.8 + Math.random() * 0.8, // how far from road center
-      type: Math.random() > 0.4 ? "tree" : "bush",
-    });
+  for (let i = 0; i < 24; i++) {
+    sceneryItems.push(makeSceneryItem(Math.random()));
   }
+}
+
+function makeSceneryItem(depth) {
+  const side = Math.random() > 0.5 ? -1 : 1;
+  const biome = BIOMES[currentBiome].name;
+  let type;
+  if (biome === "Edinburgh") {
+    const r = Math.random();
+    if (r < 0.35) type = "tenement";
+    else if (r < 0.55) type = "spire";
+    else if (r < 0.7) type = "lamppost";
+    else if (r < 0.85) type = "bush";
+    else type = "tree";
+  } else if (biome === "Forest") {
+    type = Math.random() < 0.7 ? "pine" : Math.random() < 0.5 ? "tree" : "fern";
+  } else if (biome === "Loch") {
+    const r = Math.random();
+    if (r < 0.3) type = "reed";
+    else if (r < 0.5) type = "rock";
+    else if (r < 0.7) type = "tree";
+    else type = "bush";
+  } else {
+    const r = Math.random();
+    if (r < 0.3) type = "cottage";
+    else if (r < 0.5) type = "fence";
+    else if (r < 0.75) type = "tree";
+    else type = "bush";
+  }
+  return {
+    depth,
+    side,
+    offset: 1.6 + Math.random() * 1.0,
+    type,
+    height: 0.6 + Math.random() * 0.6, // variation
+    colorSeed: Math.random(),
+  };
 }
 
 // ─── UI ──────────────────────────────────────────────────────────
@@ -311,6 +411,11 @@ function startGame() {
   nearMissStreak = 0;
   comboTimer = 0;
   player = { lane: 0, laneSmooth: 0, bobFrame: 0 };
+  currentBiome = 0;
+  nextBiome = 1;
+  biomeTransition = 0;
+  biomeTimer = 0;
+  biomeBannerTimer = 80;
   initScenery();
   startScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
@@ -485,31 +590,74 @@ function spawnObstacle() {
 
 // ─── Drawing: Sky & Ground ───────────────────────────────────────
 function drawSky() {
-  // Sky gradient
+  const skyColors = getBiomeColor("sky");
   const grad = ctx.createLinearGradient(0, 0, 0, VP_Y + 40);
-  grad.addColorStop(0, "#4a90d9");
-  grad.addColorStop(0.6, "#87CEEB");
-  grad.addColorStop(1, "#B8E6FF");
+  grad.addColorStop(0, skyColors[0]);
+  grad.addColorStop(0.6, skyColors[1]);
+  grad.addColorStop(1, skyColors[2]);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, GAME_W, VP_Y + 40);
 
   // Clouds
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
   const cloudOffset = (frame * 0.3) % (GAME_W + 200);
   drawCloud(cloudOffset - 100, VP_Y - 120, 1);
   drawCloud((cloudOffset + 250) % (GAME_W + 200) - 100, VP_Y - 80, 0.7);
   drawCloud((cloudOffset + 450) % (GAME_W + 200) - 100, VP_Y - 140, 0.5);
 
-  // Distant hills
-  ctx.fillStyle = "#5a9a5a";
+  // Edinburgh: castle silhouette on horizon
+  const biome = BIOMES[currentBiome].name;
+  if (biome === "Edinburgh" && biomeTransition < 0.5) {
+    ctx.fillStyle = "rgba(60,50,70,0.4)";
+    // Castle rock
+    ctx.beginPath();
+    ctx.moveTo(40, VP_Y + 8);
+    ctx.lineTo(60, VP_Y - 20);
+    ctx.lineTo(80, VP_Y - 25);
+    ctx.lineTo(100, VP_Y - 30);
+    ctx.lineTo(110, VP_Y - 22);
+    ctx.lineTo(115, VP_Y - 32);
+    ctx.lineTo(125, VP_Y - 28);
+    ctx.lineTo(140, VP_Y + 8);
+    ctx.fill();
+    // Distant spires
+    ctx.fillRect(200, VP_Y - 18, 3, 20);
+    ctx.fillRect(260, VP_Y - 14, 2, 16);
+    ctx.fillRect(310, VP_Y - 20, 3, 22);
+    // Calton Hill
+    ctx.beginPath();
+    ctx.moveTo(280, VP_Y + 8);
+    ctx.lineTo(300, VP_Y - 10);
+    ctx.lineTo(340, VP_Y - 8);
+    ctx.lineTo(360, VP_Y + 8);
+    ctx.fill();
+    ctx.fillRect(312, VP_Y - 16, 8, 10);
+    ctx.fillRect(314, VP_Y - 20, 4, 6);
+  }
+
+  // Distant hills / terrain
+  const groundColors = getBiomeColor("ground");
+  ctx.fillStyle = groundColors[0];
   ctx.beginPath();
   ctx.moveTo(0, VP_Y + 10);
-  for (let x = 0; x <= GAME_W; x += 20) {
-    ctx.lineTo(x, VP_Y + 10 - Math.sin(x * 0.015) * 15 - Math.sin(x * 0.008) * 10);
+  for (let x = 0; x <= GAME_W; x += 15) {
+    const hillH = biome === "Loch" ? 8 : biome === "Forest" ? 18 : 12;
+    ctx.lineTo(x, VP_Y + 10 - Math.sin(x * 0.015 + frame * 0.0003) * hillH - Math.sin(x * 0.008) * 8);
   }
   ctx.lineTo(GAME_W, VP_Y + 40);
   ctx.lineTo(0, VP_Y + 40);
   ctx.fill();
+
+  // Loch: water shimmer on horizon
+  if (biome === "Loch" && biomeTransition < 0.5) {
+    ctx.fillStyle = "rgba(80,140,180,0.35)";
+    ctx.fillRect(0, VP_Y + 2, GAME_W, 8);
+    ctx.fillStyle = "rgba(200,230,255,0.15)";
+    for (let x = 0; x < GAME_W; x += 12) {
+      const shimmer = Math.sin(x * 0.3 + frame * 0.05) * 2;
+      ctx.fillRect(x, VP_Y + 4 + shimmer, 6, 1);
+    }
+  }
 }
 
 function drawCloud(cx, cy, s) {
@@ -520,13 +668,28 @@ function drawCloud(cx, cy, s) {
 }
 
 function drawGround() {
-  // Ground (grass) below horizon
+  const groundColors = getBiomeColor("ground");
   const grad = ctx.createLinearGradient(0, VP_Y, 0, GAME_H);
-  grad.addColorStop(0, "#5a9a5a");
-  grad.addColorStop(0.3, "#4a8a4a");
-  grad.addColorStop(1, "#3a7a3a");
+  grad.addColorStop(0, groundColors[0]);
+  grad.addColorStop(0.3, groundColors[1]);
+  grad.addColorStop(1, groundColors[2]);
   ctx.fillStyle = grad;
   ctx.fillRect(0, VP_Y, GAME_W, GAME_H - VP_Y);
+}
+
+function drawBiomeBanner() {
+  if (biomeBannerTimer > 0) {
+    const alpha = biomeBannerTimer > 40 ? 1 : biomeBannerTimer / 40;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 14px 'Courier New'";
+    ctx.textAlign = "center";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 8;
+    ctx.fillText(BIOMES[currentBiome].banner, GAME_W / 2, 70);
+    ctx.restore();
+  }
 }
 
 // ─── Drawing: Road with Perspective ──────────────────────────────
@@ -538,7 +701,7 @@ function drawRoad() {
   const botRight = VP_X + ROAD_W_BOTTOM / 2;
 
   // Road surface
-  ctx.fillStyle = "#555566";
+  ctx.fillStyle = getBiomeColor("road");
   ctx.beginPath();
   ctx.moveTo(topLeft, VP_Y);
   ctx.lineTo(topRight, VP_Y);
@@ -572,7 +735,7 @@ function drawRoad() {
 function drawSidewalk(side) {
   // side: -1 = left, 1 = right
   const segments = 30;
-  ctx.fillStyle = "#998877";
+  ctx.fillStyle = getBiomeColor("sidewalk");
   ctx.beginPath();
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
@@ -660,7 +823,7 @@ function drawGrassStripes() {
   }
 }
 
-// ─── Drawing: Scenery (roadside trees/bushes) ────────────────────
+// ─── Drawing: Scenery (biome-aware) ──────────────────────────────
 function drawSceneryItem(item) {
   const t = item.depth;
   if (t < 0.02 || t > 1.05) return;
@@ -668,21 +831,189 @@ function drawSceneryItem(item) {
   const roadW = ROAD_W_TOP + (ROAD_W_BOTTOM - ROAD_W_TOP) * t;
   const screenX = VP_X + item.side * (roadW / 2) * item.offset;
   const sz = t * 0.9;
+  const x = screenX, y = screenY;
+  const h = item.height;
 
-  if (item.type === "tree") {
-    ctx.fillStyle = "#8B6B3D";
-    ctx.fillRect(screenX - 3 * sz, screenY - 20 * sz, 6 * sz, 24 * sz);
-    ctx.fillStyle = "#2D7B2D";
-    ctx.fillRect(screenX - 12 * sz, screenY - 32 * sz, 24 * sz, 14 * sz);
-    ctx.fillStyle = "#3D8B3D";
-    ctx.fillRect(screenX - 9 * sz, screenY - 42 * sz, 18 * sz, 14 * sz);
-    ctx.fillStyle = "#2D7B2D";
-    ctx.fillRect(screenX - 5 * sz, screenY - 48 * sz, 10 * sz, 8 * sz);
-  } else {
-    ctx.fillStyle = "#3D8B3D";
-    ctx.fillRect(screenX - 10 * sz, screenY - 8 * sz, 20 * sz, 12 * sz);
-    ctx.fillStyle = "#2D7B2D";
-    ctx.fillRect(screenX - 7 * sz, screenY - 14 * sz, 14 * sz, 8 * sz);
+  switch (item.type) {
+    case "tree":
+      ctx.fillStyle = "#8B6B3D";
+      ctx.fillRect(x - 3*sz, y - 20*sz, 6*sz, 24*sz);
+      ctx.fillStyle = "#2D7B2D";
+      ctx.fillRect(x - 12*sz, y - 32*sz, 24*sz, 14*sz);
+      ctx.fillStyle = "#3D8B3D";
+      ctx.fillRect(x - 9*sz, y - 42*sz, 18*sz, 14*sz);
+      ctx.fillStyle = "#2D7B2D";
+      ctx.fillRect(x - 5*sz, y - 48*sz, 10*sz, 8*sz);
+      break;
+
+    case "bush":
+      ctx.fillStyle = "#3D8B3D";
+      ctx.fillRect(x - 10*sz, y - 8*sz, 20*sz, 12*sz);
+      ctx.fillStyle = "#2D7B2D";
+      ctx.fillRect(x - 7*sz, y - 14*sz, 14*sz, 8*sz);
+      break;
+
+    case "tenement": {
+      // Edinburgh sandstone tenement
+      const bw = 28 * sz * h;
+      const bh = 50 * sz * h;
+      const warm = item.colorSeed > 0.5;
+      ctx.fillStyle = warm ? "#c4a872" : "#b8a070"; // sandstone
+      ctx.fillRect(x - bw/2, y - bh, bw, bh);
+      // Darker base
+      ctx.fillStyle = warm ? "#a08858" : "#988060";
+      ctx.fillRect(x - bw/2, y - bh * 0.2, bw, bh * 0.2);
+      // Windows (rows)
+      ctx.fillStyle = "#3a3a5a";
+      const winW = 4 * sz, winH = 5 * sz, winGap = 7 * sz;
+      for (let row = 0; row < 3; row++) {
+        for (let col = -1; col <= 1; col++) {
+          ctx.fillRect(x + col * winGap - winW/2, y - bh + 8*sz + row * (winH + 4*sz), winW, winH);
+          // Window reflection
+          ctx.fillStyle = "rgba(180,200,220,0.3)";
+          ctx.fillRect(x + col * winGap - winW/2, y - bh + 8*sz + row * (winH + 4*sz), winW/2, winH/2);
+          ctx.fillStyle = "#3a3a5a";
+        }
+      }
+      // Door
+      ctx.fillStyle = "#4a3020";
+      ctx.fillRect(x - 3*sz, y - 10*sz, 6*sz, 10*sz);
+      // Roof line
+      ctx.fillStyle = "#555";
+      ctx.fillRect(x - bw/2 - 1*sz, y - bh - 2*sz, bw + 2*sz, 3*sz);
+      // Chimney
+      ctx.fillStyle = "#887766";
+      ctx.fillRect(x + bw/4, y - bh - 10*sz, 4*sz, 10*sz);
+      break;
+    }
+
+    case "spire": {
+      // Church/monument spire
+      const sw = 10 * sz;
+      const sh = 60 * sz * h;
+      ctx.fillStyle = "#777";
+      ctx.fillRect(x - sw/2, y - sh, sw, sh);
+      // Spire point
+      ctx.fillStyle = "#666";
+      ctx.beginPath();
+      ctx.moveTo(x, y - sh - 15*sz);
+      ctx.lineTo(x - sw/2, y - sh);
+      ctx.lineTo(x + sw/2, y - sh);
+      ctx.fill();
+      // Clock face
+      ctx.fillStyle = "#ddd";
+      ctx.beginPath();
+      ctx.arc(x, y - sh * 0.6, 3*sz, 0, Math.PI*2);
+      ctx.fill();
+      // Base building
+      ctx.fillStyle = "#999";
+      ctx.fillRect(x - sw, y - sh * 0.3, sw * 2, sh * 0.3);
+      break;
+    }
+
+    case "lamppost": {
+      ctx.fillStyle = "#333";
+      ctx.fillRect(x - 1*sz, y - 30*sz, 2*sz, 30*sz);
+      ctx.fillRect(x - 4*sz, y - 32*sz, 8*sz, 3*sz);
+      // Lamp glow
+      ctx.fillStyle = "rgba(255,220,100,0.25)";
+      ctx.beginPath();
+      ctx.arc(x, y - 33*sz, 6*sz, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = "#ffdd66";
+      ctx.fillRect(x - 2*sz, y - 34*sz, 4*sz, 3*sz);
+      break;
+    }
+
+    case "pine": {
+      // Tall pine tree
+      ctx.fillStyle = "#5a3a1a";
+      ctx.fillRect(x - 2*sz, y - 15*sz, 4*sz, 20*sz);
+      ctx.fillStyle = "#1a5a2a";
+      // Triangle layers
+      for (let i = 0; i < 4; i++) {
+        const lw = (12 - i*2) * sz;
+        const ly = y - 18*sz - i * 10*sz;
+        ctx.fillRect(x - lw/2, ly, lw, 12*sz);
+      }
+      ctx.fillStyle = "#0a4a1a";
+      for (let i = 0; i < 3; i++) {
+        const lw = (10 - i*2) * sz;
+        const ly = y - 22*sz - i * 10*sz;
+        ctx.fillRect(x - lw/2, ly, lw, 6*sz);
+      }
+      break;
+    }
+
+    case "fern": {
+      ctx.fillStyle = "#2a7a2a";
+      for (let i = -2; i <= 2; i++) {
+        ctx.fillRect(x + i*3*sz - 1*sz, y - 6*sz - Math.abs(i)*2*sz, 2*sz, (8 + Math.abs(i)*2)*sz);
+      }
+      ctx.fillStyle = "#1a6a1a";
+      ctx.fillRect(x - 4*sz, y - 4*sz, 8*sz, 6*sz);
+      break;
+    }
+
+    case "reed": {
+      ctx.strokeStyle = "#5a8a3a";
+      ctx.lineWidth = Math.max(1, 1.5*sz);
+      for (let i = -2; i <= 2; i++) {
+        const sway = Math.sin(frame * 0.02 + i + item.colorSeed * 10) * 2 * sz;
+        ctx.beginPath();
+        ctx.moveTo(x + i*3*sz, y);
+        ctx.lineTo(x + i*3*sz + sway, y - (12 + Math.random()*4)*sz);
+        ctx.stroke();
+      }
+      break;
+    }
+
+    case "rock": {
+      ctx.fillStyle = "#7a7a7a";
+      ctx.fillRect(x - 8*sz, y - 5*sz, 16*sz, 8*sz);
+      ctx.fillStyle = "#6a6a6a";
+      ctx.fillRect(x - 6*sz, y - 8*sz, 12*sz, 5*sz);
+      ctx.fillStyle = "#8a8a8a";
+      ctx.fillRect(x - 4*sz, y - 4*sz, 4*sz, 3*sz);
+      break;
+    }
+
+    case "cottage": {
+      const cw = 22*sz*h;
+      const ch = 20*sz*h;
+      // Walls
+      ctx.fillStyle = "#e8dcc8";
+      ctx.fillRect(x - cw/2, y - ch, cw, ch);
+      // Roof
+      ctx.fillStyle = "#8B4513";
+      ctx.beginPath();
+      ctx.moveTo(x, y - ch - 10*sz);
+      ctx.lineTo(x - cw/2 - 3*sz, y - ch);
+      ctx.lineTo(x + cw/2 + 3*sz, y - ch);
+      ctx.fill();
+      // Window
+      ctx.fillStyle = "#5577aa";
+      ctx.fillRect(x - 4*sz, y - ch + 4*sz, 4*sz, 5*sz);
+      ctx.fillRect(x + 1*sz, y - ch + 4*sz, 4*sz, 5*sz);
+      // Door
+      ctx.fillStyle = "#6a3a1a";
+      ctx.fillRect(x - 2*sz, y - 8*sz, 5*sz, 8*sz);
+      // Chimney
+      ctx.fillStyle = "#888";
+      ctx.fillRect(x + cw/4, y - ch - 14*sz, 4*sz, 8*sz);
+      break;
+    }
+
+    case "fence": {
+      ctx.fillStyle = "#aa9070";
+      // Posts
+      ctx.fillRect(x - 8*sz, y - 10*sz, 2*sz, 12*sz);
+      ctx.fillRect(x + 6*sz, y - 10*sz, 2*sz, 12*sz);
+      // Rails
+      ctx.fillRect(x - 8*sz, y - 9*sz, 16*sz, 2*sz);
+      ctx.fillRect(x - 8*sz, y - 4*sz, 16*sz, 2*sz);
+      break;
+    }
   }
 }
 
@@ -831,14 +1162,32 @@ function update() {
   const targetLane = player.lane;
   player.laneSmooth += (targetLane - player.laneSmooth) * LANE_SWITCH_LERP;
 
+  // Biome transitions
+  biomeTimer++;
+  if (biomeBannerTimer > 0) biomeBannerTimer--;
+  if (biomeTimer >= BIOME_DURATION) {
+    biomeTimer = 0;
+    currentBiome = nextBiome;
+    nextBiome = (nextBiome + 1) % BIOMES.length;
+    biomeTransition = 0;
+    biomeBannerTimer = 80;
+  } else if (biomeTimer > BIOME_DURATION - BIOME_FADE) {
+    biomeTransition = (biomeTimer - (BIOME_DURATION - BIOME_FADE)) / BIOME_FADE;
+  } else {
+    biomeTransition = 0;
+  }
+
   // Update scenery
   for (const s of sceneryItems) {
     s.depth += speed;
     if (s.depth > 1.1) {
-      s.depth -= 1.2;
-      s.side = Math.random() > 0.5 ? -1 : 1;
-      s.offset = 1.8 + Math.random() * 0.8;
-      s.type = Math.random() > 0.4 ? "tree" : "bush";
+      const newItem = makeSceneryItem(-0.1);
+      s.depth = newItem.depth;
+      s.side = newItem.side;
+      s.offset = newItem.offset;
+      s.type = newItem.type;
+      s.height = newItem.height;
+      s.colorSeed = newItem.colorSeed;
     }
   }
 
@@ -924,6 +1273,7 @@ function draw() {
 
   drawCombo();
   drawParticles();
+  drawBiomeBanner();
 
   ctx.restore();
 

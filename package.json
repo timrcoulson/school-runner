@@ -1,9 +1,9 @@
 {
-  "name": "school-runner",
+  "name": "the-arcade",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "npx serve public -l 3333"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0"

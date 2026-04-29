@@ -4,21 +4,17 @@ const LEADERBOARD_KEY = "school-runner:leaderboard";
 const MAX_ENTRIES = 20;
 
 // ─── In-memory fallback for local dev ────────────────────────────
-// Sorted set stored as an array of {member, score}, kept sorted desc.
-// Resets when the serverless function cold-starts (fine for dev).
-const memoryStore = [];
+const memoryStore = []; // [{member, score}]
 
 const memoryKV = {
   async zrange(_key, start, end, opts = {}) {
     const sorted = opts.rev
       ? [...memoryStore].sort((a, b) => b.score - a.score)
       : [...memoryStore].sort((a, b) => a.score - b.score);
-    const slice = sorted.slice(start, end + 1);
-    if (opts.withScores) return slice;
-    return slice.map((e) => e.member);
+    return sorted.slice(start, end + 1);
   },
-  async zadd(_key, { score, member }) {
-    memoryStore.push({ member, score });
+  async zadd(_key, entry) {
+    memoryStore.push({ member: entry.member, score: entry.score });
   },
   async zcard(_key) {
     return memoryStore.length;
@@ -26,33 +22,46 @@ const memoryKV = {
   async zremrangebyrank(_key, start, end) {
     const sorted = [...memoryStore].sort((a, b) => a.score - b.score);
     const toRemove = new Set(sorted.slice(start, end + 1).map((e) => e.member));
-    let i = memoryStore.length;
-    while (i--) {
+    for (let i = memoryStore.length - 1; i >= 0; i--) {
       if (toRemove.has(memoryStore[i].member)) memoryStore.splice(i, 1);
     }
   },
 };
 
-// Use real Redis if env vars are set, otherwise in-memory
 const useRedis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
 const store = useRedis
   ? new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN })
   : memoryKV;
 
 if (!useRedis) {
-  console.log("⚠ No Redis credentials — using in-memory leaderboard (dev mode)");
+  console.log("No Redis credentials — using in-memory leaderboard (dev mode)");
 }
 
 // ─── Helper ──────────────────────────────────────────────────────
+function parseEntries(raw) {
+  // Upstash may return [{member, score}] or a flat [member, score, member, score] array
+  // Handle both formats
+  if (!raw || raw.length === 0) return [];
+
+  // Check if first element is an object with member property
+  if (typeof raw[0] === "object" && raw[0] !== null && "member" in raw[0]) {
+    return raw.map((e) => ({ name: e.member, score: e.score }));
+  }
+
+  // Flat array: [member, score, member, score, ...]
+  const entries = [];
+  for (let i = 0; i < raw.length; i += 2) {
+    entries.push({ name: String(raw[i]), score: Number(raw[i + 1]) });
+  }
+  return entries;
+}
+
 async function getLeaderboard() {
-  const scores = await store.zrange(LEADERBOARD_KEY, 0, MAX_ENTRIES - 1, {
+  const raw = await store.zrange(LEADERBOARD_KEY, 0, MAX_ENTRIES - 1, {
     rev: true,
     withScores: true,
   });
-  return scores.map((entry) => ({
-    name: entry.member ?? entry,
-    score: entry.score ?? 0,
-  }));
+  return parseEntries(raw);
 }
 
 // ─── Handler ─────────────────────────────────────────────────────
@@ -85,7 +94,6 @@ export default async function handler(req, res) {
 
       await store.zadd(LEADERBOARD_KEY, { score, member });
 
-      // Trim to keep only top entries
       const count = await store.zcard(LEADERBOARD_KEY);
       if (count > MAX_ENTRIES * 2) {
         await store.zremrangebyrank(LEADERBOARD_KEY, 0, count - MAX_ENTRIES - 1);

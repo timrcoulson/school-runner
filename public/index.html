@@ -2,228 +2,337 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>School Runner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Arcade</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #1a1a2e;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      overflow: hidden;
-      font-family: 'Courier New', monospace;
-      touch-action: none;
-    }
-    #game-container {
-      position: relative;
-      image-rendering: pixelated;
-    }
-    canvas {
-      display: block;
-      image-rendering: pixelated;
-      border: 4px solid #e94560;
-      border-radius: 4px;
-    }
-    #ui-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      pointer-events: none;
-      z-index: 10;
-    }
-    #score-display {
+      background: #0a0a1a;
+      min-height: 100vh;
+      font-family: 'Press Start 2P', 'Courier New', monospace;
       color: #fff;
-      font-size: 20px;
-      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
-      font-weight: bold;
-      letter-spacing: 2px;
+      overflow-x: hidden;
     }
-    #hi-score {
-      color: #e94560;
-      font-size: 14px;
-      text-shadow: 2px 2px 0 #000;
-      font-weight: bold;
-    }
-    #speed-display {
-      color: #ffdd57;
-      font-size: 11px;
-      text-shadow: 1px 1px 0 #000;
-      margin-top: 2px;
-    }
-    #start-screen, #game-over-screen {
-      position: absolute;
+
+    /* Scanline overlay */
+    body::after {
+      content: '';
+      position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.15) 0px,
+        rgba(0,0,0,0.15) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .arcade-header {
+      text-align: center;
+      padding: 48px 20px 24px;
+    }
+
+    .arcade-title {
+      font-size: 42px;
+      color: #ffdd57;
+      text-shadow:
+        0 0 10px #ffdd57,
+        0 0 30px #e94560,
+        4px 4px 0 #e94560;
+      letter-spacing: 6px;
+      line-height: 1.4;
+    }
+
+    .arcade-subtitle {
+      font-size: 10px;
+      color: #888;
+      margin-top: 16px;
+      letter-spacing: 3px;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 24px 60px;
+    }
+
+    .game-card {
+      background: #14142a;
+      border: 3px solid #2a2a4a;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px) scale(1.02);
+      border-color: #e94560;
+      box-shadow:
+        0 8px 30px rgba(233, 69, 96, 0.3),
+        0 0 15px rgba(233, 69, 96, 0.15);
+    }
+
+    .game-card:active {
+      transform: translateY(-1px) scale(0.99);
+    }
+
+    .game-preview {
+      height: 180px;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(26, 26, 46, 0.92);
-      z-index: 20;
-      gap: 12px;
-      overflow-y: auto;
+      position: relative;
+      overflow: hidden;
     }
-    #start-screen h1, #game-over-screen h1 {
-      color: #e94560;
-      font-size: 36px;
-      text-shadow: 3px 3px 0 #000;
-      text-align: center;
-      line-height: 1.2;
-    }
-    #start-screen p, #game-over-screen p {
-      color: #eee;
-      font-size: 14px;
-      text-align: center;
-      max-width: 280px;
-      line-height: 1.6;
-    }
-    .btn {
-      background: #e94560;
-      color: #fff;
-      border: none;
-      padding: 14px 40px;
-      font-size: 18px;
-      font-family: 'Courier New', monospace;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 3px;
-      margin-top: 4px;
-      transition: transform 0.1s;
-    }
-    .btn:hover { transform: scale(1.05); }
-    .btn:active { transform: scale(0.95); }
-    .btn-secondary {
-      background: transparent;
-      border: 2px solid #e94560;
-      padding: 10px 30px;
-      font-size: 14px;
-    }
-    #final-score {
-      color: #fff;
-      font-size: 48px;
-      font-weight: bold;
-      text-shadow: 3px 3px 0 #e94560;
-    }
-    .subtitle {
-      color: #aaa;
-      font-size: 12px;
-    }
-    .hidden { display: none !important; }
 
-    /* Leaderboard */
-    #leaderboard, #start-leaderboard {
-      width: 260px;
-      max-height: 280px;
-      overflow-y: auto;
+    .game-preview canvas {
+      image-rendering: pixelated;
     }
-    .lb-title {
+
+    .game-info {
+      padding: 16px 18px 20px;
+      border-top: 2px solid #2a2a4a;
+    }
+
+    .game-name {
+      font-size: 14px;
       color: #ffdd57;
-      font-size: 16px;
-      font-weight: bold;
-      text-align: center;
       margin-bottom: 8px;
-      letter-spacing: 2px;
     }
-    .lb-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 4px 8px;
-      color: #ccc;
-      font-size: 13px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .lb-row:nth-child(2) { color: #ffdd57; } /* 1st place (after title) */
-    .lb-row:nth-child(3) { color: #ccc; }    /* 2nd */
-    .lb-row:nth-child(4) { color: #cd7f32; } /* 3rd */
-    .lb-rank { width: 24px; text-align: right; margin-right: 8px; }
-    .lb-name { flex: 1; }
-    .lb-score { font-weight: bold; color: #fff; }
-    .lb-loading { color: #888; font-size: 12px; text-align: center; padding: 12px; }
 
-    /* Name input */
-    #name-form {
+    .game-desc {
+      font-size: 8px;
+      color: #999;
+      line-height: 1.8;
+    }
+
+    .game-tags {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
     }
-    #name-input {
-      background: rgba(255,255,255,0.1);
-      border: 2px solid #e94560;
-      color: #fff;
-      padding: 10px 16px;
-      font-size: 16px;
-      font-family: 'Courier New', monospace;
-      text-align: center;
-      text-transform: uppercase;
-      width: 200px;
-      border-radius: 4px;
-      outline: none;
-      letter-spacing: 3px;
-    }
-    #name-input::placeholder {
-      color: #666;
-      text-transform: none;
+
+    .tag {
+      font-size: 7px;
+      padding: 4px 8px;
+      background: rgba(233, 69, 96, 0.15);
+      color: #e94560;
+      border: 1px solid rgba(233, 69, 96, 0.3);
+      border-radius: 3px;
       letter-spacing: 1px;
     }
-    #name-input:focus {
-      border-color: #ffdd57;
+
+    /* Coming soon card */
+    .game-card.coming-soon {
+      opacity: 0.45;
+      cursor: default;
     }
-    #submit-msg {
-      color: #aaa;
-      font-size: 11px;
-      height: 14px;
+    .game-card.coming-soon:hover {
+      transform: none;
+      border-color: #2a2a4a;
+      box-shadow: none;
+    }
+    .coming-soon-badge {
+      font-size: 9px;
+      color: #666;
+      letter-spacing: 2px;
+    }
+
+    /* Pixel art characters for card previews */
+    .preview-scene {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 8px;
+      color: #444;
+      letter-spacing: 2px;
     }
   </style>
 </head>
 <body>
-  <div id="game-container">
-    <canvas id="game"></canvas>
-    <div id="ui-overlay">
-      <div>
-        <div id="score-display">0</div>
-        <div id="hi-score">HI: 0</div>
-        <div id="speed-display"></div>
-      </div>
-    </div>
+  <header class="arcade-header">
+    <h1 class="arcade-title">THE ARCADE</h1>
+    <p class="arcade-subtitle">SELECT A GAME TO PLAY</p>
+  </header>
 
-    <!-- Start Screen -->
-    <div id="start-screen">
-      <h1>SCHOOL<br>RUNNER</h1>
-      <p>Dodge dog poo, trees, puddles and water guns on your way to school!</p>
-      <p class="subtitle">Swipe or use arrow keys to change lanes</p>
-      <button class="btn" id="start-btn">RUN!</button>
-      <div id="start-leaderboard">
-        <div class="lb-loading">Loading leaderboard...</div>
-      </div>
-    </div>
+  <div class="games-grid" id="games-grid"></div>
 
-    <!-- Game Over Screen -->
-    <div id="game-over-screen" class="hidden">
-      <h1>BUSTED!</h1>
-      <div id="final-score">0</div>
-      <p id="death-message"></p>
+  <footer class="footer">INSERT COIN TO CONTINUE</footer>
 
-      <div id="name-form">
-        <input type="text" id="name-input" maxlength="12" placeholder="Your name" autocomplete="off" />
-        <button class="btn" id="submit-score-btn">SUBMIT SCORE</button>
-        <div id="submit-msg"></div>
-      </div>
+  <script>
+    // ─── Game Registry ─────────────────────────────────────────────
+    // Add new games here. Each entry becomes a card on the grid.
+    const GAMES = [
+      {
+        id: "school-runner",
+        name: "School Runner",
+        desc: "Dodge dog poo, angry cats and water guns on your way to school!",
+        tags: ["ENDLESS RUNNER", "3 LANES", "LEADERBOARD"],
+        path: "/games/school-runner/",
+        colors: { bg: "#4a7c59", road: "#555566", accent: "#e94560" },
+        drawPreview(ctx, w, h, t) {
+          // Mini road scene
+          ctx.fillStyle = "#87CEEB";
+          ctx.fillRect(0, 0, w, h * 0.4);
+          ctx.fillStyle = this.colors.bg;
+          ctx.fillRect(0, h * 0.35, w, h);
+          // Road
+          const cx = w / 2;
+          ctx.fillStyle = this.colors.road;
+          ctx.beginPath();
+          ctx.moveTo(cx - 4, h * 0.4);
+          ctx.lineTo(cx + 4, h * 0.4);
+          ctx.lineTo(cx + 70, h);
+          ctx.lineTo(cx - 70, h);
+          ctx.fill();
+          // Lane dashes
+          ctx.strokeStyle = "rgba(255,255,255,0.3)";
+          ctx.lineWidth = 1;
+          for (const off of [-0.33, 0.33]) {
+            const dashes = 6;
+            for (let i = 0; i < dashes; i++) {
+              const d = ((i / dashes) + (t * 0.001) % (1 / dashes));
+              const y1 = h * 0.4 + (h * 0.6) * d;
+              const y2 = y1 + 6;
+              const rw1 = 8 + 140 * d;
+              const rw2 = 8 + 140 * (d + 0.03);
+              ctx.beginPath();
+              ctx.moveTo(cx + off * rw1 * 0.5, y1);
+              ctx.lineTo(cx + off * rw2 * 0.5, y2);
+              ctx.stroke();
+            }
+          }
+          // Character (from behind)
+          const py = h * 0.72;
+          const bob = Math.sin(t * 0.004) * 2;
+          // Legs
+          ctx.fillStyle = "#3344aa";
+          ctx.fillRect(cx - 5, py + bob, 4, 10);
+          ctx.fillRect(cx + 1, py + bob, 4, 10);
+          // Body
+          ctx.fillStyle = "#ee4444";
+          ctx.fillRect(cx - 7, py - 14 + bob, 14, 14);
+          // Backpack
+          ctx.fillStyle = "#e94560";
+          ctx.fillRect(cx - 6, py - 16 + bob, 12, 14);
+          ctx.fillStyle = "#cc3350";
+          ctx.fillRect(cx - 4, py - 8 + bob, 8, 6);
+          // Head
+          ctx.fillStyle = "#ffcc99";
+          ctx.fillRect(cx - 5, py - 24 + bob, 10, 9);
+          ctx.fillStyle = "#553311";
+          ctx.fillRect(cx - 5, py - 26 + bob, 10, 5);
+          // Obstacle (tree)
+          const ox = cx + 22;
+          const oy = h * 0.58;
+          ctx.fillStyle = "#8B6B3D";
+          ctx.fillRect(ox - 2, oy, 4, 12);
+          ctx.fillStyle = "#2D7B2D";
+          ctx.fillRect(ox - 8, oy - 8, 16, 10);
+          ctx.fillStyle = "#3D8B3D";
+          ctx.fillRect(ox - 5, oy - 14, 10, 8);
+        },
+      },
+      {
+        id: "coming-soon-1",
+        name: "???",
+        desc: "Something new is coming...",
+        tags: ["COMING SOON"],
+        path: null,
+        comingSoon: true,
+        drawPreview(ctx, w, h, t) {
+          ctx.fillStyle = "#14142a";
+          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle = "#333";
+          ctx.font = "bold 32px 'Press Start 2P', monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const alpha = 0.3 + Math.sin(t * 0.002) * 0.2;
+          ctx.globalAlpha = alpha;
+          ctx.fillText("?", w / 2, h / 2);
+          ctx.globalAlpha = 1;
+        },
+      },
+    ];
 
-      <button class="btn btn-secondary" id="retry-btn">PLAY AGAIN</button>
+    // ─── Render Cards ──────────────────────────────────────────────
+    const grid = document.getElementById("games-grid");
+    const canvases = [];
 
-      <div id="leaderboard">
-        <div class="lb-loading">Loading...</div>
-      </div>
-    </div>
-  </div>
-  <script src="game.js"></script>
+    for (const game of GAMES) {
+      const card = document.createElement("a");
+      card.className = `game-card${game.comingSoon ? " coming-soon" : ""}`;
+      if (game.path) card.href = game.path;
+
+      const preview = document.createElement("div");
+      preview.className = "game-preview";
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 280;
+      canvas.height = 180;
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      preview.appendChild(canvas);
+      canvases.push({ canvas, game });
+
+      const info = document.createElement("div");
+      info.className = "game-info";
+
+      const name = document.createElement("div");
+      name.className = "game-name";
+      name.textContent = game.name;
+
+      const desc = document.createElement("div");
+      desc.className = "game-desc";
+      desc.textContent = game.desc;
+
+      const tags = document.createElement("div");
+      tags.className = "game-tags";
+      for (const t of game.tags) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = t;
+        tags.appendChild(tag);
+      }
+
+      info.appendChild(name);
+      info.appendChild(desc);
+      info.appendChild(tags);
+      card.appendChild(preview);
+      card.appendChild(info);
+      grid.appendChild(card);
+    }
+
+    // ─── Animate Previews ──────────────────────────────────────────
+    function animatePreviews() {
+      const t = Date.now();
+      for (const { canvas, game } of canvases) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        game.drawPreview(ctx, canvas.width, canvas.height, t);
+      }
+      requestAnimationFrame(animatePreviews);
+    }
+    animatePreviews();
+  </script>
 </body>
 </html>

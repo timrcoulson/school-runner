@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>School Runner — The Arcade</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+    }
+    #back-btn {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.5);
+      color: #ffdd57;
+      border: 2px solid #ffdd57;
+      padding: 6px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      z-index: 50;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+    #back-btn:hover { background: rgba(255,221,87,0.15); }
+    #game-container {
+      position: relative;
+      image-rendering: pixelated;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      border: 4px solid #e94560;
+      border-radius: 4px;
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #score-display {
+      color: #fff;
+      font-size: 20px;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+    #hi-score {
+      color: #e94560;
+      font-size: 14px;
+      text-shadow: 2px 2px 0 #000;
+      font-weight: bold;
+    }
+    #speed-display {
+      color: #ffdd57;
+      font-size: 11px;
+      text-shadow: 1px 1px 0 #000;
+      margin-top: 2px;
+    }
+    #start-screen, #game-over-screen {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26, 26, 46, 0.92);
+      z-index: 20;
+      gap: 12px;
+      overflow-y: auto;
+    }
+    #start-screen h1, #game-over-screen h1 {
+      color: #e94560;
+      font-size: 36px;
+      text-shadow: 3px 3px 0 #000;
+      text-align: center;
+      line-height: 1.2;
+    }
+    #start-screen p, #game-over-screen p {
+      color: #eee;
+      font-size: 14px;
+      text-align: center;
+      max-width: 280px;
+      line-height: 1.6;
+    }
+    .btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 14px 40px;
+      font-size: 18px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-top: 4px;
+      transition: transform 0.1s;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .btn:active { transform: scale(0.95); }
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid #e94560;
+      padding: 10px 30px;
+      font-size: 14px;
+    }
+    #final-score {
+      color: #fff;
+      font-size: 48px;
+      font-weight: bold;
+      text-shadow: 3px 3px 0 #e94560;
+    }
+    .subtitle {
+      color: #aaa;
+      font-size: 12px;
+    }
+    .hidden { display: none !important; }
+
+    /* Leaderboard */
+    #leaderboard, #start-leaderboard {
+      width: 260px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .lb-title {
+      color: #ffdd57;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+    .lb-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 8px;
+      color: #ccc;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .lb-row:nth-child(2) { color: #ffdd57; } /* 1st place (after title) */
+    .lb-row:nth-child(3) { color: #ccc; }    /* 2nd */
+    .lb-row:nth-child(4) { color: #cd7f32; } /* 3rd */
+    .lb-rank { width: 24px; text-align: right; margin-right: 8px; }
+    .lb-name { flex: 1; }
+    .lb-score { font-weight: bold; color: #fff; }
+    .lb-loading { color: #888; font-size: 12px; text-align: center; padding: 12px; }
+
+    /* Name input */
+    #name-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    #name-input {
+      background: rgba(255,255,255,0.1);
+      border: 2px solid #e94560;
+      color: #fff;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      text-transform: uppercase;
+      width: 200px;
+      border-radius: 4px;
+      outline: none;
+      letter-spacing: 3px;
+    }
+    #name-input::placeholder {
+      color: #666;
+      text-transform: none;
+      letter-spacing: 1px;
+    }
+    #name-input:focus {
+      border-color: #ffdd57;
+    }
+    #submit-msg {
+      color: #aaa;
+      font-size: 11px;
+      height: 14px;
+    }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="/">BACK</a>
+  <div id="game-container">
+    <canvas id="game"></canvas>
+    <div id="ui-overlay">
+      <div>
+        <div id="score-display">0</div>
+        <div id="hi-score">HI: 0</div>
+        <div id="speed-display"></div>
+      </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+      <h1>SCHOOL<br>RUNNER</h1>
+      <p>Dodge dog poo, trees, puddles and water guns on your way to school!</p>
+      <p class="subtitle">Swipe or use arrow keys to change lanes</p>
+      <button class="btn" id="start-btn">RUN!</button>
+      <div id="start-leaderboard">
+        <div class="lb-loading">Loading leaderboard...</div>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="hidden">
+      <h1>BUSTED!</h1>
+      <div id="final-score">0</div>
+      <p id="death-message"></p>
+
+      <div id="name-form">
+        <input type="text" id="name-input" maxlength="12" placeholder="Your name" autocomplete="off" />
+        <button class="btn" id="submit-score-btn">SUBMIT SCORE</button>
+        <div id="submit-msg"></div>
+      </div>
+
+      <button class="btn btn-secondary" id="retry-btn">PLAY AGAIN</button>
+
+      <div id="leaderboard">
+        <div class="lb-loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

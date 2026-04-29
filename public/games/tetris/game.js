@@ -28,6 +28,10 @@ const TNT_COLOR = "#ff4400";
 const TNT_ACCENT = "#ffaa00";
 const EXPLOSION_RADIUS = 2; // cells in each direction
 
+const MYSTERY_COLOR = "#9944cc";
+const MYSTERY_SHAPE = [[1,1],[1,1]]; // disguise shape (2x2 square)
+const MYSTERY_CHANCE = 0.10;
+
 // ─── State ───────────────────────────────────────────────────────
 let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 let current = null;   // { shape, color, x, y, isTNT }
@@ -89,10 +93,14 @@ function gameOver() {
 function randomPiece() {
   const p = PIECES[Math.floor(Math.random() * PIECES.length)];
   const isTNT = piecesPlaced >= 5 && Math.random() < TNT_CHANCE;
+  const isMystery = !isTNT && piecesPlaced >= 8 && Math.random() < MYSTERY_CHANCE;
   return {
-    shape: p.shape.map((r) => [...r]),
-    color: isTNT ? TNT_COLOR : p.color,
+    shape: isMystery ? MYSTERY_SHAPE.map((r) => [...r]) : p.shape.map((r) => [...r]),
+    realShape: isMystery ? p.shape.map((r) => [...r]) : null,
+    realColor: isMystery ? p.color : null,
+    color: isTNT ? TNT_COLOR : isMystery ? MYSTERY_COLOR : p.color,
     isTNT,
+    isMystery,
   };
 }
 
@@ -107,7 +115,17 @@ function spawnPiece() {
 
   if (current.isTNT) {
     tntWarning.style.opacity = "1";
+    tntWarning.textContent = "TNT!";
     setTimeout(() => (tntWarning.style.opacity = "0"), 600);
+  }
+  if (current.isMystery) {
+    tntWarning.style.opacity = "1";
+    tntWarning.textContent = "???";
+    tntWarning.style.color = MYSTERY_COLOR;
+    setTimeout(() => {
+      tntWarning.style.opacity = "0";
+      tntWarning.style.color = "#ff4444";
+    }, 600);
   }
 
   if (collides(current.shape, current.x, current.y)) {
@@ -193,6 +211,14 @@ function hardDrop() {
 function lockPiece() {
   if (!current) return;
   const wasTNT = current.isTNT;
+  const wasMystery = current.isMystery;
+
+  // Mystery: reveal the real shape at the lock position
+  if (wasMystery && current.realShape) {
+    current.shape = current.realShape;
+    current.color = current.realColor;
+    current.isMystery = false;
+  }
 
   // Place cells on board
   for (let r = 0; r < current.shape.length; r++) {
@@ -358,7 +384,7 @@ document.getElementById("btn-rotate").addEventListener("click", () => state === 
 document.getElementById("btn-drop").addEventListener("click", () => state === "playing" && hardDrop());
 
 // ─── Drawing ─────────────────────────────────────────────────────
-function drawCell(x, y, color, isTNT = false) {
+function drawCell(x, y, color, flags = {}) {
   const px = x * CELL;
   const py = y * CELL;
 
@@ -376,17 +402,26 @@ function drawCell(x, y, color, isTNT = false) {
   ctx.fillRect(px + 1, py + CELL - 4, CELL - 2, 3);
   ctx.fillRect(px + CELL - 4, py + 1, 3, CELL - 2);
 
-  if (isTNT) {
-    // TNT label
+  if (flags.isTNT) {
     ctx.fillStyle = TNT_ACCENT;
     ctx.font = "bold 10px 'Courier New'";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("T", px + CELL / 2, py + CELL / 2);
-
-    // Flashing border
     const flash = Math.sin(Date.now() * 0.008) * 0.4 + 0.6;
     ctx.strokeStyle = `rgba(255, 170, 0, ${flash})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 2, py + 2, CELL - 4, CELL - 4);
+  }
+
+  if (flags.isMystery) {
+    const pulse = Math.sin(Date.now() * 0.006) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+    ctx.font = "bold 14px 'Courier New'";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("?", px + CELL / 2, py + CELL / 2);
+    ctx.strokeStyle = `rgba(153, 68, 204, ${pulse})`;
     ctx.lineWidth = 2;
     ctx.strokeRect(px + 2, py + 2, CELL - 4, CELL - 4);
   }
@@ -407,7 +442,7 @@ function drawGhost() {
       const bx = current.x + c;
       const by = ghostY + r;
       if (by >= 0) {
-        drawCell(bx, by, current.color, false);
+        drawCell(bx, by, current.color, {});
       }
     }
   }
@@ -439,7 +474,7 @@ function drawBoard() {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (board[r][c]) {
-        drawCell(c, r, board[r][c], false);
+        drawCell(c, r, board[r][c], {});
       }
     }
   }
@@ -453,7 +488,7 @@ function drawCurrent() {
       const bx = current.x + c;
       const by = current.y + r;
       if (by >= 0) {
-        drawCell(bx, by, current.color, current.isTNT);
+        drawCell(bx, by, current.color, { isTNT: current.isTNT, isMystery: current.isMystery });
       }
     }
   }
@@ -485,6 +520,13 @@ function drawNext() {
         nextCtx.textAlign = "center";
         nextCtx.textBaseline = "middle";
         nextCtx.fillText("T", px + cellSz / 2, py + cellSz / 2);
+      }
+      if (next.isMystery) {
+        nextCtx.fillStyle = "#fff";
+        nextCtx.font = "bold 10px 'Courier New'";
+        nextCtx.textAlign = "center";
+        nextCtx.textBaseline = "middle";
+        nextCtx.fillText("?", px + cellSz / 2, py + cellSz / 2);
       }
     }
   }

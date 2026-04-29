@@ -47,6 +47,7 @@ let groundOffset = 0;
 let screenShake = 0;
 let particles = [];
 let lastPipeX = 0;
+let hazardSparks = []; // horizontal spark bolts to dodge
 
 // ─── UI ──────────────────────────────────────────────────────────
 const overlay = document.getElementById("overlay");
@@ -67,6 +68,7 @@ function startGame() {
   screenShake = 0;
   particles = [];
   sparkParticles = [];
+  hazardSparks = [];
   groundOffset = 0;
   lastPipeX = W + 100;
   overlay.classList.add("hidden");
@@ -490,6 +492,125 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
+// ─── Hazard Sparks (horizontal bolts to dodge) ──────────────────
+const SPARK_SPEED = 3.5;
+const SPARK_W = 20;
+const SPARK_H = 6;
+const SPARK_START_SCORE = 3; // sparks start after this score
+
+function maybeSpawnHazardSpark() {
+  if (score < SPARK_START_SCORE) return;
+  // Chance increases with score
+  const chance = Math.min(0.012 + score * 0.001, 0.04);
+  if (Math.random() > chance) return;
+
+  // Pick a random pipe that's on screen to shoot from
+  const visiblePipes = pipes.filter(p => p.x > CHIP_X + 40 && p.x < W - 20);
+  if (visiblePipes.length === 0) return;
+  const pipe = visiblePipes[Math.floor(Math.random() * visiblePipes.length)];
+
+  // Shoot from top or bottom connector, heading left toward player
+  const fromTop = Math.random() < 0.5;
+  const gapY = fromTop ? pipe.topH + 4 : pipe.topH + PIPE_GAP - 4;
+  // Slight vertical offset to make it interesting
+  const yOff = (Math.random() - 0.5) * (PIPE_GAP * 0.5);
+  const y = Math.max(20, Math.min(gapY + yOff, H - GROUND_H - 20));
+
+  hazardSparks.push({
+    x: pipe.x,
+    y,
+    vx: -SPARK_SPEED,
+    life: 200,
+    trail: [],
+  });
+}
+
+function updateHazardSparks() {
+  for (let i = hazardSparks.length - 1; i >= 0; i--) {
+    const s = hazardSparks[i];
+    s.x += s.vx;
+    // Slight wave motion
+    s.y += Math.sin(s.x * 0.05) * 0.5;
+    s.life--;
+    // Store trail points
+    s.trail.push({ x: s.x, y: s.y });
+    if (s.trail.length > 8) s.trail.shift();
+    if (s.x < -30 || s.life <= 0) {
+      hazardSparks.splice(i, 1);
+    }
+  }
+}
+
+function drawHazardSparks() {
+  for (const s of hazardSparks) {
+    // Trail (fading jagged line)
+    if (s.trail.length > 1) {
+      ctx.save();
+      ctx.lineWidth = 2;
+      for (let i = 1; i < s.trail.length; i++) {
+        const alpha = i / s.trail.length * 0.4;
+        ctx.strokeStyle = `rgba(100,180,255,${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(s.trail[i-1].x, s.trail[i-1].y);
+        ctx.lineTo(s.trail[i].x, s.trail[i].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Bolt head — bright zigzag
+    ctx.save();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#77bbff";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(s.x + SPARK_W, s.y);
+    ctx.lineTo(s.x + SPARK_W * 0.65, s.y - 3);
+    ctx.lineTo(s.x + SPARK_W * 0.35, s.y + 3);
+    ctx.lineTo(s.x, s.y);
+    ctx.stroke();
+
+    // Core glow
+    ctx.fillStyle = "#ffee77";
+    ctx.shadowColor = "#ffee77";
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(s.x + SPARK_W * 0.5, s.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Random micro-sparks around bolt
+    ctx.fillStyle = "rgba(255,238,120,0.6)";
+    for (let j = 0; j < 2; j++) {
+      ctx.fillRect(
+        s.x + Math.random() * SPARK_W,
+        s.y + (Math.random() - 0.5) * 8,
+        2, 2
+      );
+    }
+  }
+}
+
+function checkHazardSparkCollision() {
+  const chipLeft = CHIP_X;
+  const chipRight = CHIP_X + CHIP_W;
+  const chipTop = chipY - CHIP_H / 2;
+  const chipBot = chipY + CHIP_H / 2;
+
+  for (const s of hazardSparks) {
+    const sLeft = s.x;
+    const sRight = s.x + SPARK_W;
+    const sTop = s.y - SPARK_H / 2;
+    const sBot = s.y + SPARK_H / 2;
+
+    if (chipRight > sLeft && chipLeft < sRight && chipBot > sTop && chipTop < sBot) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ─── Collision ───────────────────────────────────────────────────
 function checkCollision() {
   const gy = H - GROUND_H;
@@ -557,8 +678,12 @@ function update() {
     // Ground scroll
     groundOffset = (groundOffset + PIPE_SPEED) % 24;
 
+    // Hazard sparks
+    maybeSpawnHazardSpark();
+    updateHazardSparks();
+
     // Collision
-    if (checkCollision()) {
+    if (checkCollision() || checkHazardSparkCollision()) {
       die();
     }
   }
@@ -603,6 +728,7 @@ function draw() {
   }
 
   drawGround();
+  drawHazardSparks();
   drawChip();
   drawSparkParticles();
   drawParticles();

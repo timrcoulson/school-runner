@@ -23,15 +23,15 @@ window.addEventListener("resize", resize);
 resize();
 
 // ─── Constants ───────────────────────────────────────────────────
-const GRAVITY = 0.35;
-const FLAP_FORCE = -6.5;
+const GRAVITY = 0.28;
+const FLAP_FORCE = -5.8;
 const CHIP_X = 80;
 const CHIP_W = 32;
-const CHIP_H = 24;
+const CHIP_H = 22;
 const PIPE_W = 52;
-const PIPE_GAP = 170;
-const PIPE_SPEED = 2;
-const PIPE_SPACING = 220;
+const PIPE_GAP = 190;
+const PIPE_SPEED = 1.8;
+const PIPE_SPACING = 240;
 const GROUND_H = 60;
 
 // ─── State ───────────────────────────────────────────────────────

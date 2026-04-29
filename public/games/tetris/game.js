@@ -26,7 +26,7 @@ const PIECES = [
 
 const TNT_COLOR = "#ff4400";
 const TNT_ACCENT = "#ffaa00";
-const EXPLOSION_RADIUS = 3; // cells in each direction
+const EXPLOSION_RADIUS = 2; // cells in each direction
 
 // ─── State ───────────────────────────────────────────────────────
 let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
@@ -37,7 +37,7 @@ let score = 0;
 let lines = 0;
 let level = 1;
 let dropTimer = 0;
-let dropInterval = 800; // ms
+let dropInterval = 500; // ms
 let lastTime = 0;
 let lockDelay = 0;
 let explosions = [];  // [{x, y, radius, frame, maxFrames}]
@@ -55,6 +55,7 @@ const overlay = document.getElementById("overlay");
 const overlayGO = document.getElementById("overlay-gameover");
 const finalScoreEl = document.getElementById("final-score");
 const tntWarning = document.getElementById("tnt-warning");
+const levelBanner = document.getElementById("level-banner");
 
 document.getElementById("start-btn").addEventListener("click", startGame);
 document.getElementById("retry-btn").addEventListener("click", startGame);
@@ -64,7 +65,7 @@ function startGame() {
   score = 0;
   lines = 0;
   level = 1;
-  dropInterval = 800;
+  dropInterval = 500;
   piecesPlaced = 0;
   explosions = [];
   screenShake = 0;
@@ -249,6 +250,9 @@ function triggerExplosion(cx, cy) {
 
   // Apply gravity after explosion (cells above fall down)
   applyGravity();
+
+  // Check for complete lines after explosion
+  clearLines();
 }
 
 function applyGravity() {
@@ -281,12 +285,20 @@ function clearLines() {
   }
 
   if (cleared > 0) {
+    const prevLevel = level;
     // Scoring: 100, 300, 500, 800
     const points = [0, 100, 300, 500, 800];
     score += (points[cleared] || 800) * level;
     lines += cleared;
     level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(80, 800 - (level - 1) * 70);
+    dropInterval = Math.max(80, 500 - (level - 1) * 40);
+
+    if (level > prevLevel) {
+      levelBanner.textContent = `LEVEL ${level}`;
+      levelBanner.style.opacity = "1";
+      setTimeout(() => (levelBanner.style.opacity = "0"), 1200);
+    }
+
     updateUI();
   }
 }

@@ -447,61 +447,30 @@ function die(obstacle) {
     finalScoreEl.textContent = score;
     deathMsgEl.textContent = deathMessage;
     gameOverScreen.classList.remove("hidden");
-    fetchLeaderboard("leaderboard");
+    LB.fetchLeaderboard(GAME_ID, "leaderboard");
   }, 600);
 }
 
-// ─── Leaderboard ─────────────────────────────────────────────────
-let savedName = localStorage.getItem("schoolRunnerName") || "";
+// ─── Leaderboard (shared module) ─────────────────────────────────
+const GAME_ID = "school-runner";
+const LB = window.Leaderboard;
+
+let savedName = LB.getSavedName() || localStorage.getItem("schoolRunnerName") || "";
 const nameInput = document.getElementById("name-input");
 const submitBtn = document.getElementById("submit-score-btn");
 const submitMsg = document.getElementById("submit-msg");
 
-if (savedName) nameInput.value = savedName;
+if (savedName) {
+  nameInput.value = savedName;
+  LB.setSavedName(savedName); // migrate to shared key
+}
 
-submitBtn.addEventListener("click", submitScore);
+submitBtn.addEventListener("click", handleSubmit);
 nameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") submitScore();
+  if (e.key === "Enter") handleSubmit();
 });
 
-async function fetchLeaderboard(containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '<div class="lb-loading">Loading...</div>';
-  try {
-    const res = await fetch("/api/scores");
-    if (!res.ok) throw new Error("Failed");
-    const { leaderboard } = await res.json();
-    renderLeaderboard(container, leaderboard);
-  } catch {
-    container.innerHTML = '<div class="lb-loading">Leaderboard unavailable</div>';
-  }
-}
-
-function renderLeaderboard(container, entries) {
-  if (!entries || entries.length === 0) {
-    container.innerHTML = '<div class="lb-loading">No scores yet. Be the first!</div>';
-    return;
-  }
-  let html = '<div class="lb-title">LEADERBOARD</div>';
-  entries.forEach((entry, i) => {
-    // Strip the ::timestamp suffix from the name
-    const name = entry.name.split("::")[0];
-    html += `<div class="lb-row">
-      <span class="lb-rank">${i + 1}.</span>
-      <span class="lb-name">${escapeHtml(name)}</span>
-      <span class="lb-score">${entry.score}</span>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-async function submitScore() {
+async function handleSubmit() {
   const name = nameInput.value.trim();
   if (!name) {
     submitMsg.textContent = "Enter your name first!";
@@ -512,21 +481,15 @@ async function submitScore() {
     return;
   }
 
-  localStorage.setItem("schoolRunnerName", name);
+  LB.setSavedName(name);
   savedName = name;
   submitBtn.disabled = true;
   submitBtn.textContent = "SUBMITTING...";
   submitMsg.textContent = "";
 
   try {
-    const res = await fetch("/api/scores", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, score }),
-    });
-    if (!res.ok) throw new Error("Failed");
-    const { leaderboard } = await res.json();
-    renderLeaderboard(document.getElementById("leaderboard"), leaderboard);
+    const leaderboard = await LB.submitScore(GAME_ID, name, score);
+    LB.renderLeaderboard(document.getElementById("leaderboard"), leaderboard);
     submitBtn.textContent = "SUBMITTED!";
     submitMsg.textContent = "";
   } catch {
@@ -1301,5 +1264,5 @@ function loop() {
 
 initScenery();
 hiScoreDisplay.textContent = `HI: ${hiScore}`;
-fetchLeaderboard("start-leaderboard");
+LB.fetchLeaderboard(GAME_ID, "start-leaderboard");
 loop();

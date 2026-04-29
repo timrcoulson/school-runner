@@ -1,29 +1,42 @@
 import { Redis } from "@upstash/redis";
 
-const LEADERBOARD_KEY = "school-runner:leaderboard";
+const LEADERBOARD_PREFIX = "school-runner:leaderboard";
+const DEFAULT_GAME = "school-runner";
+const ALLOWED_GAMES = ["school-runner", "tetris", "flappy"];
 const MAX_ENTRIES = 20;
 
+function leaderboardKey(gameId) {
+  return `${LEADERBOARD_PREFIX}:${gameId}`;
+}
+
 // ─── In-memory fallback for local dev ────────────────────────────
-const memoryStore = []; // [{member, score}]
+const memoryStores = {}; // { [key]: [{member, score}] }
+
+function getMemoryStore(key) {
+  if (!memoryStores[key]) memoryStores[key] = [];
+  return memoryStores[key];
+}
 
 const memoryKV = {
-  async zrange(_key, start, end, opts = {}) {
+  async zrange(key, start, end, opts = {}) {
+    const store = getMemoryStore(key);
     const sorted = opts.rev
-      ? [...memoryStore].sort((a, b) => b.score - a.score)
-      : [...memoryStore].sort((a, b) => a.score - b.score);
+      ? [...store].sort((a, b) => b.score - a.score)
+      : [...store].sort((a, b) => a.score - b.score);
     return sorted.slice(start, end + 1);
   },
-  async zadd(_key, entry) {
-    memoryStore.push({ member: entry.member, score: entry.score });
+  async zadd(key, entry) {
+    getMemoryStore(key).push({ member: entry.member, score: entry.score });
   },
-  async zcard(_key) {
-    return memoryStore.length;
+  async zcard(key) {
+    return getMemoryStore(key).length;
   },
-  async zremrangebyrank(_key, start, end) {
-    const sorted = [...memoryStore].sort((a, b) => a.score - b.score);
+  async zremrangebyrank(key, start, end) {
+    const store = getMemoryStore(key);
+    const sorted = [...store].sort((a, b) => a.score - b.score);
     const toRemove = new Set(sorted.slice(start, end + 1).map((e) => e.member));
-    for (let i = memoryStore.length - 1; i >= 0; i--) {
-      if (toRemove.has(memoryStore[i].member)) memoryStore.splice(i, 1);
+    for (let i = store.length - 1; i >= 0; i--) {
+      if (toRemove.has(store[i].member)) store.splice(i, 1);
     }
   },
 };
@@ -56,8 +69,14 @@ function parseEntries(raw) {
   return entries;
 }
 
-async function getLeaderboard() {
-  const raw = await store.zrange(LEADERBOARD_KEY, 0, MAX_ENTRIES - 1, {
+function resolveGameId(raw) {
+  const id = (raw || DEFAULT_GAME).toString().toLowerCase();
+  return ALLOWED_GAMES.includes(id) ? id : null;
+}
+
+async function getLeaderboard(gameId) {
+  const key = leaderboardKey(gameId);
+  const raw = await store.zrange(key, 0, MAX_ENTRIES - 1, {
     rev: true,
     withScores: true,
   });
@@ -76,11 +95,19 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      return res.status(200).json({ leaderboard: await getLeaderboard() });
+      const gameId = resolveGameId(req.query.game);
+      if (!gameId) {
+        return res.status(400).json({ error: "Unknown game" });
+      }
+      return res.status(200).json({ leaderboard: await getLeaderboard(gameId) });
     }
 
     if (req.method === "POST") {
-      const { name, score } = req.body;
+      const { name, score, game } = req.body;
+      const gameId = resolveGameId(game);
+      if (!gameId) {
+        return res.status(400).json({ error: "Unknown game" });
+      }
 
       if (!name || typeof name !== "string" || name.trim().length === 0) {
         return res.status(400).json({ error: "Name is required" });
@@ -91,15 +118,16 @@ export default async function handler(req, res) {
 
       const cleanName = name.trim().slice(0, 16).toUpperCase();
       const member = `${cleanName}::${Date.now()}`;
+      const key = leaderboardKey(gameId);
 
-      await store.zadd(LEADERBOARD_KEY, { score, member });
+      await store.zadd(key, { score, member });
 
-      const count = await store.zcard(LEADERBOARD_KEY);
+      const count = await store.zcard(key);
       if (count > MAX_ENTRIES * 2) {
-        await store.zremrangebyrank(LEADERBOARD_KEY, 0, count - MAX_ENTRIES - 1);
+        await store.zremrangebyrank(key, 0, count - MAX_ENTRIES - 1);
       }
 
-      return res.status(200).json({ leaderboard: await getLeaderboard() });
+      return res.status(200).json({ leaderboard: await getLeaderboard(gameId) });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

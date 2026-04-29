@@ -87,6 +87,12 @@ function gameOver() {
   state = "gameover";
   finalScoreEl.textContent = score;
   overlayGO.classList.remove("hidden");
+  // Reset submit button for new game over
+  const submitBtn = document.getElementById("submit-score-btn");
+  submitBtn.disabled = false;
+  submitBtn.textContent = "SUBMIT SCORE";
+  document.getElementById("submit-msg").textContent = "";
+  LB.fetchLeaderboard(GAME_ID, "leaderboard");
 }
 
 // ─── Piece Generation ────────────────────────────────────────────
@@ -636,4 +642,48 @@ function loop(time) {
   requestAnimationFrame(loop);
 }
 
+// ─── Leaderboard (shared module) ─────────────────────────────────
+const GAME_ID = "tetris";
+const LB = window.Leaderboard;
+
+const nameInput = document.getElementById("name-input");
+const submitBtn = document.getElementById("submit-score-btn");
+const submitMsgEl = document.getElementById("submit-msg");
+
+const savedName = LB.getSavedName();
+if (savedName) nameInput.value = savedName;
+
+submitBtn.addEventListener("click", handleSubmit);
+nameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") handleSubmit();
+});
+
+async function handleSubmit() {
+  const name = nameInput.value.trim();
+  if (!name) {
+    submitMsgEl.textContent = "Enter your name first!";
+    return;
+  }
+  if (score <= 0) {
+    submitMsgEl.textContent = "Score too low to submit";
+    return;
+  }
+
+  LB.setSavedName(name);
+  submitBtn.disabled = true;
+  submitBtn.textContent = "SUBMITTING...";
+  submitMsgEl.textContent = "";
+
+  try {
+    const leaderboard = await LB.submitScore(GAME_ID, name, score);
+    LB.renderLeaderboard(document.getElementById("leaderboard"), leaderboard);
+    submitBtn.textContent = "SUBMITTED!";
+  } catch {
+    submitMsgEl.textContent = "Failed to submit. Try again.";
+    submitBtn.textContent = "SUBMIT SCORE";
+    submitBtn.disabled = false;
+  }
+}
+
+LB.fetchLeaderboard(GAME_ID, "start-leaderboard");
 loop();

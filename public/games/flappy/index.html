@@ -92,6 +92,96 @@
       text-shadow: 3px 3px 0 #e94560;
     }
     .hidden { display: none !important; }
+    /* Leaderboard */
+    #leaderboard, #start-leaderboard {
+      width: 260px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .lb-title {
+      color: #ffdd57;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+    .lb-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 8px;
+      color: #ccc;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .lb-row:nth-child(2) { color: #ffdd57; }
+    .lb-row:nth-child(3) { color: #ccc; }
+    .lb-row:nth-child(4) { color: #cd7f32; }
+    .lb-rank { width: 24px; text-align: right; margin-right: 8px; }
+    .lb-name { flex: 1; }
+    .lb-score { font-weight: bold; color: #fff; }
+    .lb-loading { color: #888; font-size: 12px; text-align: center; padding: 12px; }
+    /* Name input */
+    #name-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    #name-input {
+      background: rgba(255,255,255,0.1);
+      border: 2px solid #e94560;
+      color: #fff;
+      padding: 10px 16px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      text-transform: uppercase;
+      width: 200px;
+      border-radius: 4px;
+      outline: none;
+      letter-spacing: 3px;
+    }
+    #name-input::placeholder {
+      color: #666;
+      text-transform: none;
+      letter-spacing: 1px;
+    }
+    #name-input:focus { border-color: #ffdd57; }
+    #submit-msg {
+      color: #aaa;
+      font-size: 11px;
+      height: 14px;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid #e94560;
+      padding: 10px 30px;
+      font-size: 14px;
+    }
+    #overlay-dead {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10,10,26,0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      gap: 12px;
+      overflow-y: auto;
+    }
+    #overlay-dead h1 {
+      color: #e94560;
+      font-size: 24px;
+      text-shadow: 3px 3px 0 #000;
+    }
+    #overlay-dead p {
+      color: #ccc;
+      font-size: 12px;
+      text-align: center;
+      max-width: 260px;
+    }
   </style>
 </head>
 <body>
@@ -103,14 +193,29 @@
       <p>Tap, click, or press space to flap. Don't hit the pipes!</p>
       <p class="subtitle">A tiny chip with big dreams</p>
       <button class="btn" id="start-btn">FLAP!</button>
+      <div id="start-leaderboard">
+        <div class="lb-loading">Loading leaderboard...</div>
+      </div>
     </div>
     <div id="overlay-dead" class="hidden">
       <h1>CRASHED!</h1>
       <div id="final-score">0</div>
       <p id="death-msg">Your chip overheated.</p>
-      <button class="btn" id="retry-btn">RETRY</button>
+
+      <div id="name-form">
+        <input type="text" id="name-input" maxlength="12" placeholder="Your name" autocomplete="off" />
+        <button class="btn" id="submit-score-btn">SUBMIT SCORE</button>
+        <div id="submit-msg"></div>
+      </div>
+
+      <button class="btn btn-secondary" id="retry-btn">RETRY</button>
+
+      <div id="leaderboard">
+        <div class="lb-loading">Loading...</div>
+      </div>
     </div>
   </div>
+  <script src="/shared/leaderboard.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

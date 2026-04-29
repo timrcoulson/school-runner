@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>TNTetris — The Arcade</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+    }
+    #back-btn {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.5);
+      color: #ffdd57;
+      border: 2px solid #ffdd57;
+      padding: 6px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      z-index: 50;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+    #back-btn:hover { background: rgba(255,221,87,0.15); }
+    #game-wrapper {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      border: 3px solid #e94560;
+      border-radius: 4px;
+    }
+    #side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .panel-box {
+      background: rgba(20,20,42,0.9);
+      border: 2px solid #2a2a4a;
+      border-radius: 4px;
+      padding: 10px;
+      min-width: 110px;
+    }
+    .panel-label {
+      color: #888;
+      font-size: 9px;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .panel-value {
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .panel-value.level { color: #ffdd57; }
+    #next-canvas {
+      border: 2px solid #2a2a4a;
+      border-radius: 4px;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10,10,26,0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      gap: 14px;
+    }
+    #overlay.hidden { display: none; }
+    #overlay h1 {
+      color: #e94560;
+      font-size: 28px;
+      text-shadow: 3px 3px 0 #000;
+      text-align: center;
+    }
+    #overlay p {
+      color: #ccc;
+      font-size: 12px;
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.6;
+    }
+    .btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 12px 36px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .subtitle {
+      color: #aaa;
+      font-size: 10px;
+    }
+    #final-score {
+      color: #fff;
+      font-size: 42px;
+      font-weight: bold;
+      text-shadow: 3px 3px 0 #e94560;
+    }
+    #tnt-warning {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ff4444;
+      font-size: 28px;
+      font-weight: bold;
+      text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+      pointer-events: none;
+      z-index: 25;
+      opacity: 0;
+      transition: opacity 0.2s;
+      letter-spacing: 4px;
+    }
+    /* Mobile controls */
+    #mobile-controls {
+      display: none;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .ctrl-btn {
+      background: rgba(233,69,96,0.2);
+      border: 2px solid #e94560;
+      color: #fff;
+      width: 52px;
+      height: 52px;
+      font-size: 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ctrl-btn:active { background: rgba(233,69,96,0.5); }
+    .ctrl-btn.wide { width: 72px; font-size: 11px; letter-spacing: 1px; }
+    @media (max-width: 600px) {
+      #mobile-controls { display: flex; }
+      #side-panel { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="/">BACK</a>
+  <div id="tnt-warning">TNT!</div>
+
+  <div id="game-wrapper">
+    <canvas id="board"></canvas>
+    <div id="side-panel">
+      <div class="panel-box">
+        <div class="panel-label">SCORE</div>
+        <div class="panel-value" id="score-val">0</div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-label">LEVEL</div>
+        <div class="panel-value level" id="level-val">1</div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-label">LINES</div>
+        <div class="panel-value" id="lines-val">0</div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-label">NEXT</div>
+        <canvas id="next-canvas" width="80" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="mobile-controls">
+    <button class="ctrl-btn" id="btn-left">&#9664;</button>
+    <button class="ctrl-btn" id="btn-down">&#9660;</button>
+    <button class="ctrl-btn" id="btn-rotate">&#8635;</button>
+    <button class="ctrl-btn" id="btn-right">&#9654;</button>
+    <button class="ctrl-btn wide" id="btn-drop">DROP</button>
+  </div>
+
+  <div id="overlay">
+    <h1>TNTETRIS</h1>
+    <p>Classic Tetris... but some pieces are TNT that explode on landing!</p>
+    <p class="subtitle">Arrow keys / swipe to move. Up to rotate. Space to drop.</p>
+    <button class="btn" id="start-btn">PLAY</button>
+  </div>
+
+  <div id="overlay-gameover" class="hidden">
+    <h1>GAME OVER</h1>
+    <div id="final-score">0</div>
+    <button class="btn" id="retry-btn">RETRY</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
